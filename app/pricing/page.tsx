@@ -193,7 +193,7 @@ export default function PricingPage() {
               App
             </span>
           </Link>
-          {user && <UserButton afterSignOutUrl="/" />}
+          {user && <UserButton />}
         </div>
       </header>
 
