@@ -1,0 +1,23 @@
+ALTER TABLE "customers" ADD COLUMN "company_url" text;--> statement-breakpoint
+ALTER TABLE "feedback_page_views" ADD COLUMN "state" text;--> statement-breakpoint
+ALTER TABLE "feedback_page_views" ADD COLUMN "postal_code" text;--> statement-breakpoint
+ALTER TABLE "feedback_page_views" ADD COLUMN "company_name" text;--> statement-breakpoint
+ALTER TABLE "feedback_page_views" ADD COLUMN "company_domain" text;--> statement-breakpoint
+ALTER TABLE "feedback_page_views" ADD COLUMN "company_industry" text;--> statement-breakpoint
+ALTER TABLE "feedback_page_views" ADD COLUMN "isp" text;--> statement-breakpoint
+ALTER TABLE "feedback_page_views" ADD COLUMN "connection_type" text;--> statement-breakpoint
+ALTER TABLE "feedback_page_views" ADD COLUMN "latitude" text;--> statement-breakpoint
+ALTER TABLE "feedback_page_views" ADD COLUMN "longitude" text;--> statement-breakpoint
+ALTER TABLE "feedback_submissions" ADD COLUMN "city" text;--> statement-breakpoint
+ALTER TABLE "feedback_submissions" ADD COLUMN "state" text;--> statement-breakpoint
+ALTER TABLE "feedback_submissions" ADD COLUMN "postal_code" text;--> statement-breakpoint
+ALTER TABLE "feedback_submissions" ADD COLUMN "company_name" text;--> statement-breakpoint
+ALTER TABLE "feedback_submissions" ADD COLUMN "company_domain" text;--> statement-breakpoint
+ALTER TABLE "feedback_submissions" ADD COLUMN "company_industry" text;--> statement-breakpoint
+ALTER TABLE "feedback_submissions" ADD COLUMN "isp" text;--> statement-breakpoint
+ALTER TABLE "feedback_submissions" ADD COLUMN "connection_type" text;--> statement-breakpoint
+ALTER TABLE "feedback_submissions" ADD COLUMN "latitude" text;--> statement-breakpoint
+ALTER TABLE "feedback_submissions" ADD COLUMN "longitude" text;--> statement-breakpoint
+ALTER TABLE "tasks" ADD COLUMN "feedback_submission_id" text;--> statement-breakpoint
+ALTER TABLE "tasks" ADD CONSTRAINT "tasks_feedback_submission_id_feedback_submissions_id_fk" FOREIGN KEY ("feedback_submission_id") REFERENCES "public"."feedback_submissions"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "feedback_submission_id_idx" ON "tasks" USING btree ("feedback_submission_id");

@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npm cache *)",
+      "Bash(npm run *)",
+      "Bash(node -e ' *)",
+      "Bash(npx tsc *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/p.js)",
+      "Bash(cat /tmp/beam-dev.log | tail -40)",
+      "Read(//private/tmp/**)",
+      "Bash(curl -s -o /tmp/pjs.txt -w \"status=%{http_code}\\\\ntype=%{content_type}\\\\n\" http://localhost:3000/p.js)",
+      "Read(//tmp/**)",
+      "Bash(curl -s -o /dev/null -w \"/ %{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(curl -s -o /dev/null -w \"/sign-in %{http_code}\\\\n\" http://localhost:3000/sign-in)",
+      "Bash(curl -s -o /dev/null -w \"/app %{http_code}\\\\n\" http://localhost:3000/app)",
+      "Bash(curl -s -o /dev/null -w '/app/649ad13d-8193-492a-8d5c-0a3d693db972 %{http_code}\\\\n' http://localhost:3000/app/649ad13d-8193-492a-8d5c-0a3d693db972)",
+      "Bash(curl -s -o /dev/null -w \"/app/settings %{http_code}\\\\n\" http://localhost:3000/app/settings)",
+      "Bash(pkill -f \"next dev\")"
+    ]
+  }
+}

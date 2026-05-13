@@ -1,0 +1,1 @@
+CREATE INDEX "feedback_page_user_id_idx" ON "feedback_pages" USING btree ("user_id");
