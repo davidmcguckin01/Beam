@@ -19,8 +19,6 @@ const isPublicRoute = createRouteMatcher([
   "/api/feedback-pages/access", // Public API to verify form access
   "/onboarding", // Onboarding page (requires auth but is a setup flow)
   "/pricing", // Pricing page (requires auth but shown after onboarding)
-  "/blog(.*)", // Public blog pages (Opinly SDK)
-  "/api/opinly(.*)", // Opinly webhooks for cache invalidation
   "/about", // About page
   "/faq", // FAQ page
   "/terms", // Terms page

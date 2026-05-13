@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-const baseUrl = process.env.OPINLY_SITE_URL || "https://example.com";
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://example.com";
 
 export function generatePageMetadata({
   title,

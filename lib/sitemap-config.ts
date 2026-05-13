@@ -3,7 +3,7 @@
  * Centralized configuration for managing sitemap and robots.txt
  */
 
-export const baseUrl = process.env.OPINLY_SITE_URL || "https://example.com";
+export const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://example.com";
 
 export interface SitemapPage {
   loc: string;
