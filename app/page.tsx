@@ -65,9 +65,6 @@ function Nav() {
           </Link>
 
           <nav className="hidden items-center gap-7 text-[13.5px] font-medium text-black/55 md:flex">
-            <Link href="/pricing" className="transition-colors hover:text-black">
-              Pricing
-            </Link>
             <Link
               href="#how-it-works"
               className="transition-colors hover:text-black"
@@ -876,7 +873,6 @@ function SiteFooter() {
             links={[
               { label: "Features", href: "#features" },
               { label: "How it works", href: "#how-it-works" },
-              { label: "Pricing", href: "/pricing" },
               { label: "Live dashboard", href: "/sign-in" },
             ]}
           />

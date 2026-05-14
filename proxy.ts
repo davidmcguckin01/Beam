@@ -2,24 +2,12 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 const isPublicRoute = createRouteMatcher([
   "/",
-  "/api/webhooks(.*)",
-  "/api/i", // Ocholens: public ingest endpoint (pixel)
+  "/api/i", // Ocholens: public ingest endpoint (pixel + crawler beacons)
   "/invite/(.*)", // Ocholens: invite accept page (handles its own redirect-to-sign-in)
   "/sign-in(.*)",
   "/sign-up(.*)",
-  "/api/translate", // Temporarily public for testing, remove if you want auth required
-  "/api/ai-form-preview", // Public AI form generation for landing page
-  "/f/(.*)", // Public feedback pages (legacy /f/ prefix)
-  // Custom prefix/slug routes: /{prefix}/{slug}
-  // Excludes known system path prefixes to prevent auth bypass
-  "/((?!dashboard|app|sign-in|sign-up|onboarding|pricing|blog|about|faq|terms|privacy|api|_next|translate|careers)[^/]+)/([^/]+)",
-  "/api/feedback-pages/slug(.*)", // Public API to get feedback page by slug
-  "/api/feedback-pages(.*)/submissions(.*)", // Public API to submit/update feedback
-  "/api/feedback-pages(.*)/track-view", // Public API to track page views (POST only)
-  "/api/feedback-pages/access", // Public API to verify form access
-  "/onboarding", // Onboarding page (requires auth but is a setup flow)
-  "/pricing", // Pricing page (requires auth but shown after onboarding)
   "/about", // About page
+  "/careers", // Careers page
   "/faq", // FAQ page
   "/terms", // Terms page
   "/privacy", // Privacy page
