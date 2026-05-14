@@ -38,8 +38,12 @@ export function BeamHeader({
           </Link>
           <Slash />
           <OrgSwitcher orgs={orgs} activeOrg={activeOrg} />
-          <Slash />
-          <SiteSwitcher sites={sites} activeSite={activeSite} />
+          {sites.length > 0 && (
+            <>
+              <Slash />
+              <SiteSwitcher sites={sites} activeSite={activeSite} />
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -164,16 +168,8 @@ function SiteSwitcher({
         <Chevron />
       </summary>
       <div className="absolute left-0 top-full z-20 mt-1 w-72 rounded-lg border border-black/10 bg-white p-1 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.12)]">
-        <div className="flex items-baseline justify-between px-2 py-1.5">
-          <span className="text-[10px] font-medium uppercase tracking-wide text-black/40">
-            Switch site
-          </span>
-          <Link
-            href="/app"
-            className="font-mono text-[10px] uppercase tracking-wide text-black/40 hover:text-black"
-          >
-            view all
-          </Link>
+        <div className="px-2 py-1.5 text-[10px] font-medium uppercase tracking-wide text-black/40">
+          Switch site
         </div>
         {sites.length === 0 ? (
           <div className="px-2 py-2 text-[12.5px] text-black/45">
