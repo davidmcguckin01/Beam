@@ -174,23 +174,27 @@ export function Dashboard({
       />
 
       <div className="px-6 py-8 space-y-8">
-        <div>
-          <h1 className="font-mono text-2xl tracking-tight text-black">
-            {site.domain}
-          </h1>
-          <p className="mt-1 text-[13px] text-black/50">
-            {session.activeOrg.name} · last 30 days
-          </p>
-        </div>
+        {hasData && (
+          <>
+            <div>
+              <h1 className="font-mono text-2xl tracking-tight text-black">
+                {site.domain}
+              </h1>
+              <p className="mt-1 text-[13px] text-black/50">
+                {session.activeOrg.name} · last 30 days
+              </p>
+            </div>
 
-        <Stats
-          ai={totalAi}
-          crawlers={crawlerTotal}
-          sources={
-            new Set(events.map((e) => e.source).filter(Boolean)).size
-          }
-          lastEventTs={lastEventTs}
-        />
+            <Stats
+              ai={totalAi}
+              crawlers={crawlerTotal}
+              sources={
+                new Set(events.map((e) => e.source).filter(Boolean)).size
+              }
+              lastEventTs={lastEventTs}
+            />
+          </>
+        )}
 
         <InstallCard
           snippets={snippets}

@@ -20,14 +20,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "App - Build beautiful forms in minutes with AI",
-  description:
-    "Create powerful, AI-driven forms that collect exactly what you need — no code required.",
-  icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/favicon.ico",
-  },
+  title: "Beam",
+  description: "See exactly when AI sends people to your site.",
 };
 
 // Force dynamic rendering to prevent static generation issues with Clerk
