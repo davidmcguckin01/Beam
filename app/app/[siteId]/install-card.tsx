@@ -86,12 +86,6 @@ export function InstallCard({
       {/* Primary path — copy the AI prompt, hand it to your editor. */}
       <div className="px-5 py-5">
         <div className="flex items-start gap-3">
-          <span
-            className="mt-px flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-black text-white"
-            aria-hidden
-          >
-            <SparkIcon />
-          </span>
           <div className="min-w-0">
             <h3 className="text-[13px] font-semibold tracking-tight text-black">
               Install with your AI editor
@@ -109,8 +103,8 @@ export function InstallCard({
           onClick={copyPrompt}
           disabled={!promptTab}
           className={`mt-4 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-[13px] font-medium transition-colors disabled:opacity-50 ${copied
-              ? "bg-emerald-600 text-white"
-              : "bg-black text-white hover:bg-black/85"
+            ? "bg-emerald-600 text-white"
+            : "bg-black text-white hover:bg-black/85"
             }`}
         >
           {copied ? <CheckIcon /> : <ClipboardIcon />}
@@ -154,8 +148,8 @@ export function InstallCard({
                   type="button"
                   onClick={() => setActive(s.key)}
                   className={`shrink-0 rounded-md px-2.5 py-1 text-[12px] transition-colors ${s.key === active
-                      ? "bg-white text-black shadow-sm ring-1 ring-black/8"
-                      : "text-black/55 hover:bg-black/3 hover:text-black"
+                    ? "bg-white text-black shadow-sm ring-1 ring-black/8"
+                    : "text-black/55 hover:bg-black/3 hover:text-black"
                     }`}
                 >
                   {s.label}
