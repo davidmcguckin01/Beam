@@ -89,7 +89,8 @@ export default async function InstallPage({
           snippets={snippets}
           detected={detected}
           siteId={s.id}
-          status="confirmed"
+          domain={s.domain}
+          confirmed
         />
       </div>
     </main>

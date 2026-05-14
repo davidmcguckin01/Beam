@@ -649,16 +649,18 @@ export function Dashboard({
         {!hasData ? (
           <>
             {/* New site, no real events yet: the install card is the whole
-                page. The "Done" button fires a test ping, which lands in the
-                recent feed, flips testPinged and reveals the waiting surface
-                below — and the first real event flips hasData and swaps in the
-                full dashboard. A test ping verifies the pipeline only, so it
-                never claims the install itself is confirmed. */}
+                page. "Verify my install" fetches the site and scans the HTML
+                for the snippet — real verification, not a synthetic ping. The
+                separate "Send a test ping" link still writes a synthetic
+                event, which flips testPinged and reveals the waiting surface
+                below. The first real event flips hasData and swaps in the
+                full dashboard. */}
             <InstallCard
               snippets={snippets}
               detected={detected}
               siteId={site.id}
-              status={testPinged ? "test-ping" : "unconfirmed"}
+              domain={site.domain}
+              confirmed={false}
             />
             {testPinged && <WatchingForEvents />}
           </>

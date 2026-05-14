@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import type { SnippetTab } from "@/lib/snippets";
 import {
   redetectStackAction,
   resetStackAction,
   sendTestPingAction,
+  verifyInstallAction,
 } from "@/app/app/actions";
+import type { VerifyResult } from "@/lib/verify-install";
 
 type DetectedInfo = {
   label: string;
@@ -19,18 +21,19 @@ export function InstallCard({
   snippets,
   detected,
   siteId,
-  status,
+  domain,
+  confirmed,
 }: {
   snippets: SnippetTab[];
   detected: DetectedInfo;
   siteId: string;
-  // Install progress:
-  //  - "unconfirmed": nothing has landed yet — show the prominent "Done" button.
-  //  - "test-ping":   a synthetic test ping landed. The ingest pipeline works,
-  //                   but that does NOT prove the snippet is live on the site —
-  //                   only a real visit / crawler does. Show a measured note.
-  //  - "confirmed":   real events exist — the install is genuinely verified.
-  status: "unconfirmed" | "test-ping" | "confirmed";
+  // The site's domain — shown in the verification messaging and used by the
+  // server action to fetch the page.
+  domain: string;
+  // True only when the site has real events — the install is genuinely
+  // proven. When false, the user gets the "Verify my install" control, which
+  // fetches the site and checks the HTML for the snippet.
+  confirmed: boolean;
 }) {
   // The AI-agent install prompt is the primary path — most users paste it
   // straight into Cursor / Claude Code / Windsurf. The raw per-stack code
@@ -107,24 +110,13 @@ export function InstallCard({
           Paste the prompt, your AI handles the rest.
         </p>
 
-        {status === "confirmed" ? (
+        {confirmed ? (
           <div className="mt-5 flex items-center justify-center gap-1.5 text-[12.5px] text-emerald-700">
             <CheckIcon />
             Install confirmed
           </div>
-        ) : status === "test-ping" ? (
-          <div className="mt-5 text-center">
-            <div className="flex items-center justify-center gap-1.5 text-[12.5px] text-emerald-700">
-              <CheckIcon />
-              Test ping received
-            </div>
-            <p className="mx-auto mt-1 max-w-xs text-[11.5px] leading-snug text-black/45">
-              Your ingest pipeline works. The install is confirmed once a real
-              visit or crawler reaches your site.
-            </p>
-          </div>
         ) : (
-          <DoneButton siteId={siteId} />
+          <VerifyInstall siteId={siteId} domain={domain} />
         )}
 
         <div className="mt-5 flex items-center justify-center gap-3">
@@ -201,21 +193,65 @@ function TestPingButton({ siteId }: { siteId: string }) {
   );
 }
 
-// The primary "I've installed it" confirmation. Fires a single test ping —
-// that synthetic event proves the ingest pipeline works end to end and, by
-// landing in the recent feed, flips the page into its "waiting for events"
-// state. The smaller TestPingButton above stays mounted as a manual
-// re-trigger.
-function DoneButton({ siteId }: { siteId: string }) {
-  const [pending, startTransition] = useTransition();
+// The primary "I've installed it" confirmation. Actually fetches the site
+// and scans its HTML for the Beam snippet (keyed to this site's apiKey) —
+// real verification, not a synthetic ping. The result is shown inline; the
+// button becomes "Check again" so the user can re-run after fixing things.
+function VerifyInstall({
+  siteId,
+  domain,
+}: {
+  siteId: string;
+  domain: string;
+}) {
+  const [result, formAction, pending] = useActionState<
+    VerifyResult | null,
+    FormData
+  >(verifyInstallAction, null);
+
   return (
-    <form
-      className="mt-5"
-      action={(fd) => {
-        startTransition(() => sendTestPingAction(fd));
-      }}
-    >
+    <form action={formAction} className="mt-5">
       <input type="hidden" name="siteId" value={siteId} />
+
+      {result?.status === "installed" && (
+        <div className="mb-3 rounded-lg border border-emerald-600/25 bg-emerald-50 px-3.5 py-3 text-center">
+          <div className="flex items-center justify-center gap-1.5 text-[12.5px] font-medium text-emerald-700">
+            <CheckIcon />
+            Beam is live on {domain}
+          </div>
+          <p className="mt-1 text-[11.5px] leading-snug text-emerald-700/80">
+            Found the snippet on your homepage. Now waiting on the first real
+            crawler or AI referral — this page updates itself when one lands.
+          </p>
+        </div>
+      )}
+
+      {result?.status === "not-found" && (
+        <div className="mb-3 rounded-lg border border-amber-600/30 bg-amber-50 px-3.5 py-3 text-center">
+          <div className="text-[12.5px] font-medium text-amber-800">
+            Couldn&rsquo;t find the Beam snippet on {domain}
+          </div>
+          <p className="mt-1 text-[11.5px] leading-snug text-amber-800/80">
+            We loaded your homepage but the install snippet wasn&rsquo;t in the
+            HTML. Make sure it&rsquo;s in{" "}
+            <code className="font-mono text-[11px]">{"<head>"}</code> and your
+            latest deploy is live, then check again.
+          </p>
+        </div>
+      )}
+
+      {result?.status === "unreachable" && (
+        <div className="mb-3 rounded-lg border border-amber-600/30 bg-amber-50 px-3.5 py-3 text-center">
+          <div className="text-[12.5px] font-medium text-amber-800">
+            Couldn&rsquo;t reach {domain}
+          </div>
+          <p className="mt-1 text-[11.5px] leading-snug text-amber-800/80">
+            The site didn&rsquo;t respond. Check the domain is correct and
+            publicly reachable, then try again.
+          </p>
+        </div>
+      )}
+
       <button
         type="submit"
         disabled={pending}
@@ -224,10 +260,12 @@ function DoneButton({ siteId }: { siteId: string }) {
         {pending ? (
           <>
             <Spinner />
-            Pinging your site…
+            Checking {domain}…
           </>
+        ) : result ? (
+          "Check again"
         ) : (
-          "Done — I've installed it"
+          "Verify my install"
         )}
       </button>
     </form>

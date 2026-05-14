@@ -8,6 +8,7 @@ import { eq, and, asc, sql } from "drizzle-orm";
 import { ensureBeamSession, isMemberOfOrg } from "@/lib/beam-auth";
 import { detectStack } from "@/lib/stack-detect";
 import { TEST_PING_SOURCE } from "@/lib/test-ping";
+import { verifyInstall, type VerifyResult } from "@/lib/verify-install";
 import { resolveLayout } from "@/lib/dashboard-widgets";
 
 function generateApiKey(): string {
@@ -240,6 +241,35 @@ export async function sendTestPingAction(formData: FormData) {
 
   revalidatePath(`/app/${s.id}`);
   redirect(`/app/${s.id}`);
+}
+
+// Real install verification — fetches the customer's homepage and checks the
+// HTML for the Beam snippet keyed to this site's apiKey. Unlike
+// sendTestPingAction (which writes a synthetic event and only proves Beam's
+// own pipeline), this confirms the script is actually live on the site.
+// Returns its result to the caller via useActionState — no redirect.
+export async function verifyInstallAction(
+  _prev: VerifyResult | null,
+  formData: FormData
+): Promise<VerifyResult> {
+  const session = await ensureBeamSession();
+  if (!session) return { status: "unreachable" };
+
+  const siteId = String(formData.get("siteId") || "");
+  if (!siteId) return { status: "unreachable" };
+
+  const rows = await db
+    .select()
+    .from(site)
+    .where(eq(site.id, siteId))
+    .limit(1);
+  const s = rows[0];
+  if (!s) return { status: "unreachable" };
+
+  const member = await isMemberOfOrg(session.user.id, s.orgId);
+  if (!member) return { status: "unreachable" };
+
+  return verifyInstall(s.domain, s.apiKey);
 }
 
 // Helper: load a dashboard + its parent site, verifying that the current
