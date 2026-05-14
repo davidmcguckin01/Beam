@@ -4,6 +4,7 @@ import { site, event } from "@/db/schema";
 import { and, eq, gte, desc, sql, isNotNull } from "drizzle-orm";
 import { ensureBeamSession, isMemberOfOrg } from "@/lib/beam-auth";
 import { buildSnippets } from "@/lib/snippets";
+import { getAppUrl } from "@/lib/app-url";
 import { describeStack, type Stack } from "@/lib/stack-detect";
 import { Dashboard } from "./dashboard";
 
@@ -92,7 +93,7 @@ export default async function SiteDashboardPage({
 
   const crawlerTotal = crawlerRows.reduce((n, c) => n + Number(c.count), 0);
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+  const appUrl = getAppUrl();
   const stack = (s.stack as Stack | null) ?? null;
   const snippets = buildSnippets({
     appUrl,

@@ -10,6 +10,7 @@ import {
   removeMemberAction,
 } from "./actions";
 import { CopyButton } from "./copy-button";
+import { getAppUrl } from "@/lib/app-url";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,7 @@ export default async function SettingsPage({
     .where(eq(site.orgId, orgId))
     .orderBy(desc(site.createdAt));
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+  const appUrl = getAppUrl();
 
   return (
     <main className="min-h-screen bg-[#fafafa] text-black antialiased">
