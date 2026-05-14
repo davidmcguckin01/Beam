@@ -649,15 +649,16 @@ export function Dashboard({
         {!hasData ? (
           <>
             {/* New site, no real events yet: the install card is the whole
-                page. Confirming the install fires a test ping, which lands in
-                the recent feed, flips testPinged and reveals the waiting
-                surface below — and the first real event flips hasData and
-                swaps in the full dashboard. */}
+                page. The "Done" button fires a test ping, which lands in the
+                recent feed, flips testPinged and reveals the waiting surface
+                below — and the first real event flips hasData and swaps in the
+                full dashboard. A test ping verifies the pipeline only, so it
+                never claims the install itself is confirmed. */}
             <InstallCard
               snippets={snippets}
               detected={detected}
               siteId={site.id}
-              confirmed={testPinged}
+              status={testPinged ? "test-ping" : "unconfirmed"}
             />
             {testPinged && <WatchingForEvents />}
           </>

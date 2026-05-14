@@ -19,14 +19,18 @@ export function InstallCard({
   snippets,
   detected,
   siteId,
-  confirmed,
+  status,
 }: {
   snippets: SnippetTab[];
   detected: DetectedInfo;
   siteId: string;
-  // True once a test ping (or real event) has landed — the install is
-  // confirmed, so the prominent "Done" button gives way to a quiet check.
-  confirmed: boolean;
+  // Install progress:
+  //  - "unconfirmed": nothing has landed yet — show the prominent "Done" button.
+  //  - "test-ping":   a synthetic test ping landed. The ingest pipeline works,
+  //                   but that does NOT prove the snippet is live on the site —
+  //                   only a real visit / crawler does. Show a measured note.
+  //  - "confirmed":   real events exist — the install is genuinely verified.
+  status: "unconfirmed" | "test-ping" | "confirmed";
 }) {
   // The AI-agent install prompt is the primary path — most users paste it
   // straight into Cursor / Claude Code / Windsurf. The raw per-stack code
@@ -103,10 +107,21 @@ export function InstallCard({
           Paste the prompt, your AI handles the rest.
         </p>
 
-        {confirmed ? (
+        {status === "confirmed" ? (
           <div className="mt-5 flex items-center justify-center gap-1.5 text-[12.5px] text-emerald-700">
             <CheckIcon />
             Install confirmed
+          </div>
+        ) : status === "test-ping" ? (
+          <div className="mt-5 text-center">
+            <div className="flex items-center justify-center gap-1.5 text-[12.5px] text-emerald-700">
+              <CheckIcon />
+              Test ping received
+            </div>
+            <p className="mx-auto mt-1 max-w-xs text-[11.5px] leading-snug text-black/45">
+              Your ingest pipeline works. The install is confirmed once a real
+              visit or crawler reaches your site.
+            </p>
           </div>
         ) : (
           <DoneButton siteId={siteId} />
