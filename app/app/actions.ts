@@ -3,8 +3,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { site, event } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { site, event, dashboard } from "@/db/schema";
+import { eq, and, asc, sql } from "drizzle-orm";
 import { ensureBeamSession, isMemberOfOrg } from "@/lib/beam-auth";
 import { detectStack } from "@/lib/stack-detect";
 import { TEST_PING_SOURCE } from "@/lib/test-ping";
@@ -60,6 +60,14 @@ export async function createSiteAction(formData: FormData) {
     .returning();
 
   const newSite = inserted[0];
+
+  // Seed the default dashboard so the new site has one tab on first load.
+  await db.insert(dashboard).values({
+    siteId: newSite.id,
+    name: "Default",
+    position: 0,
+    layout: null,
+  });
 
   // Best-effort stack detection. Never blocks the redirect on failure.
   const stack = await detectWithTimeout(domain);
@@ -136,16 +144,65 @@ export async function sendTestPingAction(formData: FormData) {
   redirect(`/app/${s.id}`);
 }
 
-// Persists the dashboard widget layout for a site. The customise UI submits
-// the new layout as a JSON-encoded form field (either the legacy string[]
-// shape or the new LayoutItem[] shape). Validation runs server-side via
-// resolveLayout so unknown keys / malformed items are dropped.
+// Helper: load a dashboard + its parent site, verifying that the current
+// user is a member of the site's org. Used by every dashboard server action.
+async function loadDashboardForUser(
+  userId: string,
+  dashboardId: string
+): Promise<{ d: typeof dashboard.$inferSelect; s: typeof site.$inferSelect } | null> {
+  const rows = await db
+    .select({ d: dashboard, s: site })
+    .from(dashboard)
+    .innerJoin(site, eq(site.id, dashboard.siteId))
+    .where(eq(dashboard.id, dashboardId))
+    .limit(1);
+  const row = rows[0];
+  if (!row) return null;
+  const member = await isMemberOfOrg(userId, row.s.orgId);
+  if (!member) return null;
+  return row;
+}
+
+// Persists the widget layout for one dashboard. The edit-mode UI submits the
+// new layout as a JSON-encoded form field. resolveLayout drops unknown keys
+// and malformed items so we never store garbage.
 export async function saveDashboardLayoutAction(formData: FormData) {
   const session = await ensureBeamSession();
   if (!session) redirect("/sign-in");
 
+  const dashboardId = String(formData.get("dashboardId") || "");
+  if (!dashboardId) redirect("/app");
+
+  const loaded = await loadDashboardForUser(session.user.id, dashboardId);
+  if (!loaded) redirect("/app");
+  const { d, s } = loaded;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(String(formData.get("layout") || "[]"));
+  } catch {
+    parsed = [];
+  }
+  const layout = resolveLayout(parsed);
+
+  await db
+    .update(dashboard)
+    .set({ layout, updatedAt: new Date() })
+    .where(eq(dashboard.id, d.id));
+
+  revalidatePath(`/app/${s.id}`);
+  redirect(`/app/${s.id}?d=${d.id}`);
+}
+
+// Create a new dashboard tab for a site. Positioned at the end of the
+// existing tabs.
+export async function createDashboardAction(formData: FormData) {
+  const session = await ensureBeamSession();
+  if (!session) redirect("/sign-in");
+
   const siteId = String(formData.get("siteId") || "");
-  if (!siteId) redirect("/app");
+  const rawName = String(formData.get("name") || "").trim();
+  const name = rawName.slice(0, 60) || "Untitled";
 
   const rows = await db
     .select()
@@ -158,18 +215,128 @@ export async function saveDashboardLayoutAction(formData: FormData) {
   const member = await isMemberOfOrg(session.user.id, s.orgId);
   if (!member) redirect("/app");
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(String(formData.get("layout") || "[]"));
-  } catch {
-    parsed = [];
-  }
-  const layout = resolveLayout(parsed);
+  const [{ maxPos }] = await db
+    .select({
+      maxPos: sql<number>`coalesce(max(${dashboard.position}), -1)::int`,
+    })
+    .from(dashboard)
+    .where(eq(dashboard.siteId, s.id));
+
+  const [inserted] = await db
+    .insert(dashboard)
+    .values({
+      siteId: s.id,
+      name,
+      position: Number(maxPos ?? -1) + 1,
+      layout: null,
+    })
+    .returning({ id: dashboard.id });
+
+  revalidatePath(`/app/${s.id}`);
+  redirect(`/app/${s.id}?d=${inserted.id}`);
+}
+
+export async function renameDashboardAction(formData: FormData) {
+  const session = await ensureBeamSession();
+  if (!session) redirect("/sign-in");
+
+  const dashboardId = String(formData.get("dashboardId") || "");
+  const rawName = String(formData.get("name") || "").trim();
+  const name = rawName.slice(0, 60);
+  if (!name) redirect("/app");
+
+  const loaded = await loadDashboardForUser(session.user.id, dashboardId);
+  if (!loaded) redirect("/app");
+  const { d, s } = loaded;
 
   await db
-    .update(site)
-    .set({ dashboardLayout: layout })
-    .where(eq(site.id, s.id));
+    .update(dashboard)
+    .set({ name, updatedAt: new Date() })
+    .where(eq(dashboard.id, d.id));
+
+  revalidatePath(`/app/${s.id}`);
+  redirect(`/app/${s.id}?d=${d.id}`);
+}
+
+// Delete a dashboard. Refuses to delete the last remaining dashboard on a
+// site so the user is never left with no tabs.
+export async function deleteDashboardAction(formData: FormData) {
+  const session = await ensureBeamSession();
+  if (!session) redirect("/sign-in");
+
+  const dashboardId = String(formData.get("dashboardId") || "");
+  const loaded = await loadDashboardForUser(session.user.id, dashboardId);
+  if (!loaded) redirect("/app");
+  const { d, s } = loaded;
+
+  const remaining = await db
+    .select({ id: dashboard.id })
+    .from(dashboard)
+    .where(eq(dashboard.siteId, s.id));
+  if (remaining.length <= 1) {
+    revalidatePath(`/app/${s.id}`);
+    redirect(`/app/${s.id}?d=${d.id}`);
+  }
+
+  await db.delete(dashboard).where(eq(dashboard.id, d.id));
+
+  // Pick the lowest-position dashboard left as the next active.
+  const [next] = await db
+    .select({ id: dashboard.id })
+    .from(dashboard)
+    .where(eq(dashboard.siteId, s.id))
+    .orderBy(asc(dashboard.position))
+    .limit(1);
+
+  revalidatePath(`/app/${s.id}`);
+  redirect(`/app/${s.id}?d=${next?.id ?? ""}`);
+}
+
+// Re-order dashboards. Accepts a JSON array of dashboard IDs in the new
+// display order. Anything not in the list keeps its existing position
+// (preserves siblings on different sites).
+export async function reorderDashboardsAction(formData: FormData) {
+  const session = await ensureBeamSession();
+  if (!session) redirect("/sign-in");
+
+  const siteId = String(formData.get("siteId") || "");
+  let ids: string[];
+  try {
+    const parsed = JSON.parse(String(formData.get("order") || "[]"));
+    ids = Array.isArray(parsed) ? parsed.filter((v) => typeof v === "string") : [];
+  } catch {
+    ids = [];
+  }
+
+  const rows = await db
+    .select()
+    .from(site)
+    .where(eq(site.id, siteId))
+    .limit(1);
+  const s = rows[0];
+  if (!s) redirect("/app");
+
+  const member = await isMemberOfOrg(session.user.id, s.orgId);
+  if (!member) redirect("/app");
+
+  // Only update dashboards that belong to this site — defensive against a
+  // forged order list referencing other sites' dashboards.
+  const owned = await db
+    .select({ id: dashboard.id })
+    .from(dashboard)
+    .where(eq(dashboard.siteId, s.id));
+  const ownedIds = new Set(owned.map((r) => r.id));
+
+  await Promise.all(
+    ids
+      .filter((id) => ownedIds.has(id))
+      .map((id, i) =>
+        db
+          .update(dashboard)
+          .set({ position: i, updatedAt: new Date() })
+          .where(and(eq(dashboard.id, id), eq(dashboard.siteId, s.id)))
+      )
+  );
 
   revalidatePath(`/app/${s.id}`);
   redirect(`/app/${s.id}`);

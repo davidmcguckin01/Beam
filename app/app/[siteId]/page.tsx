@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { db } from "@/db";
-import { site, event } from "@/db/schema";
-import { and, eq, gte, desc, sql, isNotNull } from "drizzle-orm";
+import { site, event, dashboard } from "@/db/schema";
+import { and, eq, gte, desc, asc, sql, isNotNull } from "drizzle-orm";
 import { ensureBeamSession, isMemberOfOrg } from "@/lib/beam-auth";
 import { buildSnippets } from "@/lib/snippets";
 import { getAppUrl } from "@/lib/app-url";
@@ -12,12 +12,18 @@ import { Dashboard } from "./dashboard";
 
 export const dynamic = "force-dynamic";
 
+const RECENT_PAGE_SIZE = 50;
+
 export default async function SiteDashboardPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ siteId: string }>;
+  searchParams: Promise<{ page?: string; d?: string }>;
 }) {
   const { siteId } = await params;
+  const sp = await searchParams;
+  const recentPage = Math.max(1, Number(sp.page) || 1);
   const session = await ensureBeamSession();
   if (!session) redirect("/sign-in");
 
@@ -31,6 +37,30 @@ export default async function SiteDashboardPage({
 
   const member = await isMemberOfOrg(session.user.id, s.orgId);
   if (!member) notFound();
+
+  // Load all dashboards for this site. Always at least one — the migration
+  // seeded a "Default" per site, and createSiteAction (TODO) should also
+  // seed one for newly-created sites going forward.
+  let dashboards = await db
+    .select()
+    .from(dashboard)
+    .where(eq(dashboard.siteId, s.id))
+    .orderBy(asc(dashboard.position), asc(dashboard.createdAt));
+
+  // Defensive: if a site somehow has no dashboard row (e.g., it was created
+  // before this feature shipped and the migration backfill missed it), spin
+  // one up on the fly so the page doesn't crash.
+  if (dashboards.length === 0) {
+    const [created] = await db
+      .insert(dashboard)
+      .values({ siteId: s.id, name: "Default", position: 0, layout: null })
+      .returning();
+    dashboards = [created];
+  }
+
+  const requestedDashboardId = sp.d?.trim();
+  const activeDashboard =
+    dashboards.find((d) => d.id === requestedDashboardId) ?? dashboards[0];
 
   // All sites in this org for the header's site switcher.
   const orgSites = await db
@@ -53,9 +83,23 @@ export default async function SiteDashboardPage({
     )
     .orderBy(desc(event.ts));
 
-  // Recent activity feed — humans + crawlers together, newest first, capped
-  // at 100. Crawler hits are usually the more reliable signal so we show them
-  // alongside human referrals rather than hiding them.
+  // Recent activity feed — humans + crawlers together, newest first,
+  // paginated. Sized for click-through to event detail.
+  const recentWhere = and(
+    eq(event.siteId, s.id),
+    gte(event.ts, thirtyDaysAgo)
+  );
+
+  const [recentCountRow] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(event)
+    .where(recentWhere);
+  const recentTotal = Number(recentCountRow?.total ?? 0);
+  const recentPageSize = RECENT_PAGE_SIZE;
+  const recentTotalPages = Math.max(1, Math.ceil(recentTotal / recentPageSize));
+  const safeRecentPage = Math.min(recentPage, recentTotalPages);
+  const recentOffset = (safeRecentPage - 1) * recentPageSize;
+
   const recentAllEvents = await db
     .select({
       id: event.id,
@@ -67,12 +111,16 @@ export default async function SiteDashboardPage({
       country: event.country,
       kind: event.kind,
       botCategory: event.botCategory,
+      botVendor: event.botVendor,
       verified: event.verified,
+      userAgent: event.userAgent,
+      asn: event.asn,
     })
     .from(event)
-    .where(and(eq(event.siteId, s.id), gte(event.ts, thirtyDaysAgo)))
+    .where(recentWhere)
     .orderBy(desc(event.ts))
-    .limit(100);
+    .limit(recentPageSize)
+    .offset(recentOffset);
 
   const topReferrers = await db
     .select({
@@ -246,13 +294,23 @@ export default async function SiteDashboardPage({
         id: e.id,
         ts: e.ts.toISOString(),
         url: e.url,
+        referrer: e.referrer,
         referrerHost: e.referrerHost,
         source: e.source,
         country: e.country,
         kind: e.kind as "human" | "crawler",
         botCategory: (e.botCategory as string) || null,
+        botVendor: (e.botVendor as string) || null,
         verified: e.verified ?? false,
+        userAgent: e.userAgent,
+        asn: e.asn,
       }))}
+      recentPagination={{
+        page: safeRecentPage,
+        pageSize: recentPageSize,
+        totalPages: recentTotalPages,
+        total: recentTotal,
+      }}
       topReferrers={topReferrers.map((r) => ({
         host: r.host as string,
         count: Number(r.count),
@@ -289,7 +347,13 @@ export default async function SiteDashboardPage({
         last: r.last ? new Date(r.last).toISOString() : null,
         avgIntervalSeconds: Number(r.avgIntervalSeconds || 0),
       }))}
-      layout={resolveLayout(s.dashboardLayout)}
+      dashboards={dashboards.map((d) => ({
+        id: d.id,
+        name: d.name,
+        position: d.position,
+      }))}
+      activeDashboardId={activeDashboard.id}
+      layout={resolveLayout(activeDashboard.layout)}
       snippets={snippets}
       detected={detected}
     />

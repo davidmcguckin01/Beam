@@ -892,6 +892,33 @@ export const site = pgTable("site", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Per-site dashboard tabs. Each site has 1+ dashboards; each carries its
+// own widget layout. The site.dashboard_layout column is kept for legacy
+// reasons but is no longer the source of truth — resolveLayout migrates
+// stored values transparently on first read.
+export const dashboard = pgTable(
+  "dashboard",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    siteId: uuid("site_id")
+      .notNull()
+      .references(() => site.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    // Display order within the site (0-indexed). Lower = leftmost tab.
+    position: integer("position").notNull().default(0),
+    // {i,x,y,w,h}[] — see lib/dashboard-widgets.ts.
+    layout: jsonb("layout").$type<unknown>(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    siteIdPositionIdx: index("dashboard_site_id_position_idx").on(
+      table.siteId,
+      table.position
+    ),
+  })
+);
+
 export const event = pgTable(
   "event",
   {

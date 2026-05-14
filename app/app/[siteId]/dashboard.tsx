@@ -32,6 +32,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { BeamHeader } from "@/components/beam-header";
+import { DashboardTabs } from "./dashboard-tabs";
 import { InstallCard } from "./install-card";
 import type { SnippetTab } from "@/lib/snippets";
 
@@ -49,17 +50,29 @@ type EventRow = {
 };
 
 // Combined feed of recent events (human + crawler), used by the
-// "Recent events" widget.
+// "Recent events" widget. Carries the full set of fields the details modal
+// needs so a click doesn't require a second round-trip.
 type RecentEventRow = {
   id: string;
   ts: string;
   url: string;
+  referrer: string | null;
   referrerHost: string | null;
   source: string | null;
   country: string | null;
   kind: "human" | "crawler";
   botCategory: string | null;
+  botVendor: string | null;
   verified: boolean;
+  userAgent: string | null;
+  asn: string | null;
+};
+
+type RecentPagination = {
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  total: number;
 };
 
 type Category = "training" | "search" | "user" | "unknown";
@@ -101,6 +114,9 @@ type Props = {
     avgIntervalSeconds: number;
   }[];
   recentAll: RecentEventRow[];
+  recentPagination: RecentPagination;
+  dashboards: { id: string; name: string; position: number }[];
+  activeDashboardId: string;
   layout: LayoutItem[];
   snippets: SnippetTab[];
   detected: { label: string; serverSideAvailable: boolean } | null;
@@ -213,6 +229,9 @@ export function Dashboard({
   crawledPages,
   revisit,
   recentAll,
+  recentPagination,
+  dashboards,
+  activeDashboardId,
   layout,
   snippets,
   detected,
@@ -242,6 +261,15 @@ export function Dashboard({
   const [editMode, setEditMode] = useState(false);
   const [draftLayout, setDraftLayout] = useState<LayoutItem[]>(layout);
   const { width, containerRef, mounted } = useContainerWidth();
+
+  // Reset draft + edit state whenever the active dashboard changes so an
+  // in-flight edit on tab A doesn't leak into tab B.
+  useEffect(() => {
+    setDraftLayout(layout);
+    setEditMode(false);
+  }, [activeDashboardId, layout]);
+
+  const [selectedEvent, setSelectedEvent] = useState<RecentEventRow | null>(null);
 
   const [live, setLive] = useState(false);
   const liveRef = useRef<NodeJS.Timeout | null>(null);
@@ -277,7 +305,7 @@ export function Dashboard({
   };
   const saveLayout = () => {
     const fd = new FormData();
-    fd.append("siteId", site.id);
+    fd.append("dashboardId", activeDashboardId);
     fd.append("layout", JSON.stringify(draftLayout));
     startSaveLayout(() => saveDashboardLayoutAction(fd));
     setEditMode(false);
@@ -458,12 +486,17 @@ export function Dashboard({
         return (
           <Section
             title="Recent events"
-            right={`${recentAll.length} shown · humans + bots`}
+            right={`page ${recentPagination.page} / ${recentPagination.totalPages} · ${recentPagination.total.toLocaleString()} total · click any row`}
           >
             {recentAll.length === 0 ? (
               <EmptyHint>No events yet.</EmptyHint>
             ) : (
-              <RecentEventsList data={recentAll} />
+              <RecentEventsList
+                data={recentAll}
+                pagination={recentPagination}
+                siteId={site.id}
+                onSelect={setSelectedEvent}
+              />
             )}
           </Section>
         );
@@ -485,7 +518,7 @@ export function Dashboard({
       <div className="px-6 py-8 space-y-6">
         {hasData && (
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
+            <div className="min-w-0 flex-1">
               <h1 className="font-mono text-2xl tracking-tight text-black">
                 {site.domain}
               </h1>
@@ -561,6 +594,14 @@ export function Dashboard({
               )}
             </div>
           </div>
+        )}
+
+        {hasData && (
+          <DashboardTabs
+            siteId={site.id}
+            dashboards={dashboards}
+            activeId={activeDashboardId}
+          />
         )}
 
         {!hasData ? (
@@ -658,6 +699,10 @@ export function Dashboard({
           </>
         )}
       </div>
+      <EventDetailModal
+        event={selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+      />
     </main>
   );
 }
@@ -804,53 +849,246 @@ const RECENT_KIND_LABEL: Record<"human" | "crawler", string> = {
   crawler: "bot",
 };
 
-function RecentEventsList({ data }: { data: RecentEventRow[] }) {
+function RecentEventsList({
+  data,
+  pagination,
+  siteId,
+  onSelect,
+}: {
+  data: RecentEventRow[];
+  pagination: RecentPagination;
+  siteId: string;
+  onSelect: (e: RecentEventRow) => void;
+}) {
+  const hasPrev = pagination.page > 1;
+  const hasNext = pagination.page < pagination.totalPages;
   return (
-    <ul className="divide-y divide-black/8">
-      {data.map((e) => (
-        <li
-          key={e.id}
-          className="grid grid-cols-[auto_auto_auto_1fr_auto] items-center gap-3 px-6 py-2.5"
-        >
-          <span className="font-mono text-[11px] tabular-nums text-black/50">
-            {formatDistanceToNow(new Date(e.ts), { addSuffix: false })}
-          </span>
-          <span
-            className={`inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wide ${
-              e.kind === "crawler"
-                ? "bg-amber-50 text-amber-900"
-                : "bg-black/5 text-black/65"
-            }`}
-          >
-            {RECENT_KIND_LABEL[e.kind]}
-          </span>
-          <span>
-            {e.source ? (
-              <span className="inline-flex items-center gap-1.5 font-mono text-[11.5px] text-black">
-                <Dot color={colorFor(e.source)} />
-                {e.source}
-                {e.kind === "crawler" && e.verified && (
-                  <span className="font-mono text-[10px] uppercase tracking-wide text-emerald-600">
-                    verified
+    <div className="flex h-full flex-col">
+      <ul className="flex-1 divide-y divide-black/8 overflow-auto">
+        {data.map((e) => (
+          <li key={e.id}>
+            <button
+              type="button"
+              onClick={() => onSelect(e)}
+              className="grid w-full grid-cols-[auto_auto_auto_1fr_auto] items-center gap-3 px-6 py-2.5 text-left transition-colors hover:bg-black/3"
+            >
+              <span className="font-mono text-[11px] tabular-nums text-black/50">
+                {formatDistanceToNow(new Date(e.ts), { addSuffix: false })}
+              </span>
+              <span
+                className={`inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wide ${
+                  e.kind === "crawler"
+                    ? "bg-amber-50 text-amber-900"
+                    : "bg-black/5 text-black/65"
+                }`}
+              >
+                {RECENT_KIND_LABEL[e.kind]}
+              </span>
+              <span>
+                {e.source ? (
+                  <span className="inline-flex items-center gap-1.5 font-mono text-[11.5px] text-black">
+                    <Dot color={colorFor(e.source)} />
+                    {e.source}
+                    {e.kind === "crawler" && e.verified && (
+                      <span className="font-mono text-[10px] uppercase tracking-wide text-emerald-600">
+                        verified
+                      </span>
+                    )}
                   </span>
+                ) : e.referrerHost ? (
+                  <span className="inline-flex items-center gap-1.5 font-mono text-[11.5px] text-black/65">
+                    <Dot color="#bbb" />
+                    {e.referrerHost}
+                  </span>
+                ) : (
+                  <span className="text-[11.5px] text-black/35">—</span>
                 )}
               </span>
-            ) : e.referrerHost ? (
-              <span className="inline-flex items-center gap-1.5 font-mono text-[11.5px] text-black/65">
-                <Dot color="#bbb" />
-                {e.referrerHost}
+              <span className="truncate font-mono text-[12px] text-black/55">
+                {pathOf(e.url)}
               </span>
-            ) : (
-              <span className="text-[11.5px] text-black/35">—</span>
-            )}
-          </span>
-          <span className="truncate font-mono text-[12px] text-black/55">
-            {pathOf(e.url)}
-          </span>
-          <span className="text-[12px] text-black/50">{flagFor(e.country)}</span>
-        </li>
-      ))}
-    </ul>
+              <span className="text-[12px] text-black/50">
+                {flagFor(e.country)}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="flex shrink-0 items-center justify-between border-t border-black/8 bg-white px-6 py-2.5">
+        <span className="font-mono text-[11px] text-black/45">
+          {(pagination.page - 1) * pagination.pageSize + 1}–
+          {Math.min(
+            pagination.page * pagination.pageSize,
+            pagination.total
+          ).toLocaleString()}{" "}
+          of {pagination.total.toLocaleString()}
+        </span>
+        <div className="flex items-center gap-1">
+          {hasPrev ? (
+            <Link
+              href={`/app/${siteId}?page=${pagination.page - 1}#recent-events`}
+              scroll={false}
+              className="rounded-md border border-black/10 bg-white px-2.5 py-1 text-[11.5px] text-black/70 hover:bg-black/5 hover:text-black"
+            >
+              ← Prev
+            </Link>
+          ) : (
+            <span className="rounded-md border border-black/5 bg-white px-2.5 py-1 text-[11.5px] text-black/30">
+              ← Prev
+            </span>
+          )}
+          {hasNext ? (
+            <Link
+              href={`/app/${siteId}?page=${pagination.page + 1}#recent-events`}
+              scroll={false}
+              className="rounded-md border border-black/10 bg-white px-2.5 py-1 text-[11.5px] text-black/70 hover:bg-black/5 hover:text-black"
+            >
+              Next →
+            </Link>
+          ) : (
+            <span className="rounded-md border border-black/5 bg-white px-2.5 py-1 text-[11.5px] text-black/30">
+              Next →
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EventDetailModal({
+  event,
+  onClose,
+}: {
+  event: RecentEventRow | null;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    if (!event) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [event, onClose]);
+
+  if (!event) return null;
+
+  const fullTs = new Date(event.ts);
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Close"
+        className="fixed inset-0 z-40 bg-black/40"
+        onClick={onClose}
+      />
+      <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-lg border border-black/10 bg-white shadow-[0_24px_56px_-12px_rgba(0,0,0,0.25)]">
+        <div className="flex items-start justify-between gap-4 border-b border-black/8 px-6 py-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span
+                className={`inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wide ${
+                  event.kind === "crawler"
+                    ? "bg-amber-50 text-amber-900"
+                    : "bg-black/5 text-black/65"
+                }`}
+              >
+                {RECENT_KIND_LABEL[event.kind]}
+              </span>
+              <h3 className="font-mono text-[14px] text-black">
+                {event.source ?? event.referrerHost ?? "Direct"}
+              </h3>
+              {event.kind === "crawler" && event.verified && (
+                <span className="font-mono text-[10px] uppercase tracking-wide text-emerald-600">
+                  verified
+                </span>
+              )}
+            </div>
+            <p className="mt-1 font-mono text-[11.5px] text-black/45">
+              {fullTs.toUTCString()}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded p-1 text-black/45 hover:bg-black/5 hover:text-black"
+            aria-label="Close"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
+              <path
+                d="M3 3 L11 11 M11 3 L3 11"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </div>
+        <dl className="grid grid-cols-[140px_1fr] gap-x-4 gap-y-2.5 px-6 py-5 text-[12.5px]">
+          <DetailField label="URL" value={event.url} mono />
+          <DetailField label="Path" value={pathOf(event.url)} mono />
+          {event.referrer && (
+            <DetailField label="Referrer" value={event.referrer} mono />
+          )}
+          {event.referrerHost && !event.referrer && (
+            <DetailField label="Referrer host" value={event.referrerHost} mono />
+          )}
+          {event.kind === "crawler" && (
+            <>
+              {event.botVendor && (
+                <DetailField label="Vendor" value={event.botVendor} />
+              )}
+              {event.botCategory && (
+                <DetailField label="Intent" value={event.botCategory} />
+              )}
+              <DetailField
+                label="IP verified"
+                value={event.verified ? "yes" : "no"}
+              />
+            </>
+          )}
+          {event.country && (
+            <DetailField
+              label="Country"
+              value={`${flagFor(event.country)} ${event.country}`}
+            />
+          )}
+          {event.asn && <DetailField label="ASN" value={event.asn} mono />}
+          {event.userAgent && (
+            <DetailField label="User-Agent" value={event.userAgent} mono wrap />
+          )}
+          <DetailField label="Event ID" value={event.id} mono />
+        </dl>
+      </div>
+    </>
+  );
+}
+
+function DetailField({
+  label,
+  value,
+  mono = false,
+  wrap = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  wrap?: boolean;
+}) {
+  return (
+    <>
+      <dt className="text-[10.5px] uppercase tracking-wide text-black/45">
+        {label}
+      </dt>
+      <dd
+        className={`${mono ? "font-mono" : ""} ${
+          wrap ? "break-all" : "truncate"
+        } text-black`}
+      >
+        {value}
+      </dd>
+    </>
   );
 }
 
