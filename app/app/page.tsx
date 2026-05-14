@@ -11,7 +11,12 @@ import { skipInviteStepAction } from "./setup-actions";
 import { INVITE_SKIPPED_COOKIE } from "@/lib/setup-cookies";
 import { companyDomainFromEmail } from "@/lib/email-domain";
 import { OcholensHeader } from "@/components/beam-header";
-import { OnboardingDomainInput } from "./onboarding-domain-input";
+import {
+  OnboardingDomainInput,
+  CreateSiteButton,
+  InviteSubmitButton,
+  SkipInviteButton,
+} from "./onboarding-domain-input";
 
 export const dynamic = "force-dynamic";
 
@@ -237,7 +242,7 @@ function StepOne({ suggestedDomain }: { suggestedDomain: string | null }) {
   return (
     <StepFrame n={1} title="Add your site">
       <p className="text-[13px] text-black/55">
-        We'll detect your stack and tailor the install snippet — Next.js,
+        We&apos;ll detect your stack and tailor the install snippet — Next.js,
         Shopify, WordPress, Webflow, and more.
       </p>
       <form
@@ -245,12 +250,7 @@ function StepOne({ suggestedDomain }: { suggestedDomain: string | null }) {
         className="mt-5 flex flex-col gap-2 sm:flex-row"
       >
         <OnboardingDomainInput defaultValue={suggestedDomain ?? undefined} />
-        <button
-          type="submit"
-          className="inline-flex h-10 shrink-0 items-center justify-center rounded-md bg-black px-5 text-[13px] font-medium text-white hover:bg-black/85"
-        >
-          Create site →
-        </button>
+        <CreateSiteButton />
       </form>
       {suggestedDomain && (
         <p className="mt-2 text-[12px] text-black/40">
@@ -301,8 +301,8 @@ function StepThree() {
   return (
     <StepFrame n={3} title="Invite your team">
       <p className="text-[13px] text-black/55">
-        Share dashboard access with the rest of your team. We don't email yet
-        — you'll get an invite link to share manually.
+        Share dashboard access with the rest of your team. We don&apos;t email
+        yet — you&apos;ll get an invite link to share manually.
       </p>
       <form action={inviteAction} className="mt-5 flex flex-wrap gap-2">
         <input
@@ -322,20 +322,10 @@ function StepThree() {
           <option value="admin">Admin</option>
           <option value="owner">Owner</option>
         </select>
-        <button
-          type="submit"
-          className="inline-flex h-10 items-center rounded-md bg-black px-5 text-[13px] font-medium text-white hover:bg-black/85"
-        >
-          Send invite
-        </button>
+        <InviteSubmitButton />
       </form>
       <form action={skipInviteStepAction} className="mt-3">
-        <button
-          type="submit"
-          className="text-[12px] text-black/40 hover:text-black"
-        >
-          Skip for now →
-        </button>
+        <SkipInviteButton />
       </form>
     </StepFrame>
   );

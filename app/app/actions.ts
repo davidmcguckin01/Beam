@@ -3,11 +3,10 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { site, event, dashboard } from "@/db/schema";
+import { site, dashboard } from "@/db/schema";
 import { eq, and, asc, sql } from "drizzle-orm";
 import { ensureOcholensSession, isMemberOfOrg } from "@/lib/beam-auth";
 import { detectStack } from "@/lib/stack-detect";
-import { TEST_PING_SOURCE } from "@/lib/test-ping";
 import { verifyInstall, type VerifyResult } from "@/lib/verify-install";
 import { resolveLayout } from "@/lib/dashboard-widgets";
 
@@ -194,41 +193,10 @@ export async function resetStackAction(formData: FormData) {
   redirect(`/app/${s.id}`);
 }
 
-// Writes a synthetic event so the user can verify the dashboard pipeline
-// without having to visit their site from an external referrer.
-export async function sendTestPingAction(formData: FormData) {
-  const session = await ensureOcholensSession();
-  if (!session) redirect("/sign-in");
-
-  const siteId = String(formData.get("siteId") || "");
-  if (!siteId) redirect("/app");
-
-  const rows = await db.select().from(site).where(eq(site.id, siteId)).limit(1);
-  const s = rows[0];
-  if (!s) redirect("/app");
-
-  const member = await isMemberOfOrg(session.user.id, s.orgId);
-  if (!member) redirect("/app");
-
-  await db.insert(event).values({
-    siteId: s.id,
-    url: `https://${s.domain}/`,
-    referrer: "https://beam.dev/test",
-    referrerHost: "beam.dev",
-    source: TEST_PING_SOURCE,
-    country: null,
-    kind: "human",
-  });
-
-  revalidatePath(`/app/${s.id}`);
-  redirect(`/app/${s.id}`);
-}
-
 // Real install verification — fetches the customer's homepage and checks the
-// HTML for the Ocholens snippet keyed to this site's apiKey. Unlike
-// sendTestPingAction (which writes a synthetic event and only proves Ocholens's
-// own pipeline), this confirms the script is actually live on the site.
-// Returns its result to the caller via useActionState — no redirect.
+// HTML for the Ocholens snippet keyed to this site's apiKey. This confirms the
+// script is actually live on the site. Returns its result to the caller via
+// useActionState — no redirect.
 export async function verifyInstallAction(
   _prev: VerifyResult | null,
   formData: FormData,

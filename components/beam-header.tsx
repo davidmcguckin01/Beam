@@ -119,40 +119,15 @@ function OrgSwitcher({ orgs, activeOrg }: { orgs: Org[]; activeOrg: Org }) {
             Switch workspace
           </div>
           {orgs.map((o) => (
-            <form key={o.id} action={setActiveOrgAction} className="block">
-              <input type="hidden" name="orgId" value={o.id} />
-              <button
-                type="submit"
-                onClick={() => close()}
-                className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-black/5 ${o.id === activeOrg.id ? "text-black" : "text-black/70"
-                  }`}
-              >
-                <span className="truncate">{o.name}</span>
-                {o.id === activeOrg.id && <Check />}
-              </button>
-            </form>
+            <OrgSwitchButton
+              key={o.id}
+              org={o}
+              active={o.id === activeOrg.id}
+              onSwitched={close}
+            />
           ))}
           <div className="my-1 h-px bg-black/8" />
-          <form action={createOrgAction} className="p-1">
-            <div className="px-1 pb-1 text-[10px] font-medium uppercase tracking-wide text-black/40">
-              Create workspace
-            </div>
-            <div className="flex gap-1">
-              <input
-                type="text"
-                name="name"
-                required
-                placeholder="Workspace name"
-                className="block w-full rounded-md border border-black/10 bg-white px-2 py-1.5 text-[13px] text-black placeholder:text-black/30 focus:border-black/40 focus:outline-none"
-              />
-              <button
-                type="submit"
-                className="inline-flex h-7 items-center rounded-md bg-black px-2.5 text-[11px] font-medium text-white hover:bg-black/85"
-              >
-                Add
-              </button>
-            </div>
-          </form>
+          <CreateWorkspaceForm />
         </>
       )}
     </Dropdown>
@@ -266,37 +241,14 @@ function SiteSwitcher({
               style={{ top: menu.y, left: menu.x }}
             >
               {menu.editing ? (
-                <form
-                  action={updateSiteDomainAction}
-                  onSubmit={() => {
+                <EditDomainForm
+                  siteId={menu.id}
+                  domain={menu.domain}
+                  onDone={() => {
                     setMenu(null);
                     close();
                   }}
-                  className="p-1"
-                >
-                  <div className="px-1 pb-1 text-[10px] font-medium uppercase tracking-wide text-black/40">
-                    Edit domain
-                  </div>
-                  <input type="hidden" name="siteId" value={menu.id} />
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="text"
-                      name="domain"
-                      required
-                      autoFocus
-                      defaultValue={menu.domain}
-                      placeholder="example.com"
-                      autoComplete="off"
-                      className="block w-full rounded-md border border-black/10 bg-white px-2 py-1.5 font-mono text-[12.5px] text-black placeholder:text-black/30 focus:border-black/40 focus:outline-none"
-                    />
-                    <button
-                      type="submit"
-                      className="inline-flex h-7 items-center rounded-md bg-black px-2.5 text-[11px] font-medium text-white hover:bg-black/85"
-                    >
-                      Save
-                    </button>
-                  </div>
-                </form>
+                />
               ) : (
                 <>
                   <div className="max-w-[220px] truncate px-2 pt-1 pb-0.5 font-mono text-[11px] text-black/45">
@@ -310,27 +262,14 @@ function SiteSwitcher({
                     <Pencil />
                     Edit domain
                   </button>
-                  <form
-                    action={deleteSiteAction}
-                    // Close just the context menu — leave the switcher dropdown
-                    // open so the user can manage more sites. The action only
-                    // navigates if they deleted the site they're viewing.
-                    onSubmit={() => setMenu(null)}
-                  >
-                    <input type="hidden" name="siteId" value={menu.id} />
-                    <input
-                      type="hidden"
-                      name="activeSiteId"
-                      value={activeSite?.id ?? ""}
-                    />
-                    <button
-                      type="submit"
-                      className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-[12.5px] text-red-600 hover:bg-red-50"
-                    >
-                      <Trash />
-                      Delete site
-                    </button>
-                  </form>
+                  {/* Leaves the switcher dropdown open so the user can manage
+                      more sites; deleteSiteAction only navigates if they
+                      deleted the site they're viewing. */}
+                  <DeleteSiteButton
+                    siteId={menu.id}
+                    activeSiteId={activeSite?.id ?? ""}
+                    onDeleted={() => setMenu(null)}
+                  />
                   <div className="px-2 pt-0.5 pb-1 text-[10.5px] text-black/35">
                     Removes all its events &amp; dashboards.
                   </div>
@@ -495,6 +434,182 @@ function Pencil() {
         strokeLinejoin="round"
       />
     </svg>
+  );
+}
+
+// Delete-site button for the right-click context menu. deleteSiteAction
+// cascades the site's events + dashboards, so it's not instant — show a
+// spinner and keep the menu open until it resolves.
+function DeleteSiteButton({
+  siteId,
+  activeSiteId,
+  onDeleted,
+}: {
+  siteId: string;
+  activeSiteId: string;
+  onDeleted: () => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  return (
+    <form
+      action={(fd) => {
+        startTransition(async () => {
+          await deleteSiteAction(fd);
+          // Reached only when the deleted site wasn't the one being viewed —
+          // otherwise deleteSiteAction redirects and this never runs.
+          onDeleted();
+        });
+      }}
+    >
+      <input type="hidden" name="siteId" value={siteId} />
+      <input type="hidden" name="activeSiteId" value={activeSiteId} />
+      <button
+        type="submit"
+        disabled={pending}
+        className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-[12.5px] text-red-600 hover:bg-red-50 disabled:opacity-60"
+      >
+        {pending ? <Spinner /> : <Trash />}
+        {pending ? "Deleting…" : "Delete site"}
+      </button>
+    </form>
+  );
+}
+
+// Inline domain-edit form inside the context menu. updateSiteDomainAction
+// re-runs stack detection, so it can take a moment — lock the field + button
+// and spin until it resolves.
+function EditDomainForm({
+  siteId,
+  domain,
+  onDone,
+}: {
+  siteId: string;
+  domain: string;
+  onDone: () => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  return (
+    <form
+      action={(fd) => {
+        startTransition(async () => {
+          await updateSiteDomainAction(fd);
+          onDone();
+        });
+      }}
+      className="p-1"
+    >
+      <div className="px-1 pb-1 text-[10px] font-medium uppercase tracking-wide text-black/40">
+        Edit domain
+      </div>
+      <input type="hidden" name="siteId" value={siteId} />
+      <div className="flex items-center gap-1">
+        <input
+          type="text"
+          name="domain"
+          required
+          autoFocus
+          disabled={pending}
+          defaultValue={domain}
+          placeholder="example.com"
+          autoComplete="off"
+          className="block w-full rounded-md border border-black/10 bg-white px-2 py-1.5 font-mono text-[12.5px] text-black placeholder:text-black/30 focus:border-black/40 focus:outline-none disabled:opacity-50"
+        />
+        <button
+          type="submit"
+          disabled={pending}
+          className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md bg-black px-2.5 text-[11px] font-medium text-white hover:bg-black/85 disabled:opacity-60"
+        >
+          {pending ? (
+            <>
+              <Spinner />
+              Saving…
+            </>
+          ) : (
+            "Save"
+          )}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// One workspace row in the org switcher. setActiveOrgAction swaps the active
+// org server-side and redirects — show a spinner until it resolves, then close
+// the dropdown (for a same-route redirect the menu would otherwise linger).
+function OrgSwitchButton({
+  org,
+  active,
+  onSwitched,
+}: {
+  org: Org;
+  active: boolean;
+  onSwitched: () => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  return (
+    <form
+      action={(fd) => {
+        startTransition(async () => {
+          await setActiveOrgAction(fd);
+          onSwitched();
+        });
+      }}
+      className="block"
+    >
+      <input type="hidden" name="orgId" value={org.id} />
+      <button
+        type="submit"
+        disabled={pending}
+        className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-black/5 disabled:opacity-60 ${active ? "text-black" : "text-black/70"
+          }`}
+      >
+        <span className="truncate">{org.name}</span>
+        {pending ? <Spinner /> : active && <Check />}
+      </button>
+    </form>
+  );
+}
+
+// "Create workspace" form at the foot of the org switcher. createOrgAction
+// provisions a Clerk organization, which isn't instant — lock the field +
+// button while it's in flight.
+function CreateWorkspaceForm() {
+  const [pending, startTransition] = useTransition();
+  return (
+    <form
+      action={(fd) => {
+        startTransition(() => createOrgAction(fd));
+      }}
+      className="p-1"
+    >
+      <div className="px-1 pb-1 text-[10px] font-medium uppercase tracking-wide text-black/40">
+        Create workspace
+      </div>
+      <div className="flex gap-1">
+        <input
+          type="text"
+          name="name"
+          required
+          disabled={pending}
+          placeholder="Workspace name"
+          className="block w-full rounded-md border border-black/10 bg-white px-2 py-1.5 text-[13px] text-black placeholder:text-black/30 focus:border-black/40 focus:outline-none disabled:opacity-50"
+        />
+        <button
+          type="submit"
+          disabled={pending}
+          className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md bg-black px-2.5 text-[11px] font-medium text-white hover:bg-black/85 disabled:opacity-60"
+        >
+          {pending ? (
+            <>
+              <Spinner />
+              Adding…
+            </>
+          ) : (
+            "Add"
+          )}
+        </button>
+      </div>
+    </form>
   );
 }
 

@@ -10,6 +10,11 @@
 //   3. Server-side event (POST application/json) — high-fidelity crawler hits.
 //      Customer's middleware/worker sees every request, posts when UA matches
 //      our bots regex. We enrich (category, vendor, verify IP) and store.
+//
+// Every mode is domain-bound: the event's page URL — and, for the JS pixel,
+// the browser-set Origin/Referer — must belong to the site that owns the key.
+// The apiKey is public (it ships in the page <head>), so this is what stops
+// another site embedding someone else's key and polluting their analytics.
 
 import { NextRequest } from "next/server";
 import { db } from "@/db";
@@ -66,6 +71,16 @@ async function lookupSite(apiKey: string | null | undefined) {
   return rows[0] ?? null;
 }
 
+// True when `host` is the site's registered domain or a subdomain of it.
+// Both sides are normalized the way extractHost / cleanDomain produce them
+// (lowercase, leading "www." stripped), so this is a plain suffix check.
+function hostMatchesSite(host: string | null, siteDomain: string): boolean {
+  if (!host) return false;
+  const h = host.toLowerCase().replace(/^www\./, "");
+  const d = siteDomain.toLowerCase().replace(/^www\./, "");
+  return h === d || h.endsWith("." + d);
+}
+
 // ----- Mode 1 + 2: pixel / noscript ----------------------------------------
 
 async function handlePixel(req: NextRequest) {
@@ -83,8 +98,14 @@ async function handlePixel(req: NextRequest) {
   if (!matched) return respond();
 
   if (isCrawlerBeacon) {
-    const bot = detectBot(ua);
+    // The page URL is the Referer the crawler set when it fetched the
+    // <noscript><img>. Bind it to the site's domain so a key embedded on
+    // someone else's page can't post events into this site.
     const pageUrl = req.headers.get("referer") || "";
+    if (!hostMatchesSite(extractHost(pageUrl), matched.domain)) {
+      return respond();
+    }
+    const bot = detectBot(ua);
     await db.insert(event).values({
       siteId: matched.id,
       url: pageUrl,
@@ -104,11 +125,21 @@ async function handlePixel(req: NextRequest) {
   // JS pixel — human path
   if (isJsPixelBot(ua)) return respond();
 
+  // The browser sets Origin (and Referer) on the beacon request and page JS
+  // cannot forge either — so one of them must be this site's own domain.
+  // This is what stops another site embedding this key in its <head>.
+  const pageOrigin =
+    extractHost(req.headers.get("origin")) ??
+    extractHost(req.headers.get("referer"));
+  if (!hostMatchesSite(pageOrigin, matched.domain)) return respond();
+
   const url = searchParams.get("u") || "";
   const referrer = searchParams.get("r") || null;
   const referrerHost = extractHost(referrer);
   if (!referrerHost) return respond();
   const ownHost = extractHost(url);
+  // The reported page URL must also belong to this site.
+  if (!hostMatchesSite(ownHost, matched.domain)) return respond();
   if (ownHost && referrerHost === ownHost) return respond();
 
   await db.insert(event).values({
@@ -145,6 +176,14 @@ async function handleServerEvent(req: NextRequest) {
 
   const matched = await lookupSite(body.s);
   if (!matched) return jsonOk(); // silent OK — don't leak which keys exist
+
+  // Bind the event to the site's domain. This payload is server-to-server so
+  // there's no trustworthy Origin — a stolen key can still fabricate events
+  // that claim this site's own domain (see #4: a separate server-side ingest
+  // secret), but it can no longer point events at an unrelated site.
+  if (!hostMatchesSite(extractHost(body.url ?? null), matched.domain)) {
+    return jsonOk();
+  }
 
   const ua = body.ua || "";
   const bot = detectBot(ua);

@@ -5,7 +5,6 @@ import type { SnippetTab } from "@/lib/snippets";
 import {
   redetectStackAction,
   resetStackAction,
-  sendTestPingAction,
   verifyInstallAction,
 } from "@/app/app/actions";
 import type { VerifyResult } from "@/lib/verify-install";
@@ -59,137 +58,129 @@ export function InstallCard({
     <section className="overflow-hidden rounded-lg border border-black/8 bg-white">
       {/* Header — the detected platform tailors the prompt below; the user can
           re-run detection or clear it from here. */}
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-black/8 px-6 py-3">
-        <h2 className="text-[13px] font-medium text-black">Install</h2>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-medium uppercase tracking-wide text-black/35">
-            Platform
-          </span>
-          {detected ? (
-            <>
-              <div className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-black/3 py-1 pl-2.5 pr-1">
-                <span
-                  className="h-1.5 w-1.5 rounded-full bg-emerald-500"
-                  aria-hidden
-                />
-                <span className="font-mono text-[11px] text-black">
-                  {detected.label}
-                </span>
-                <ResetPlatformButton siteId={siteId} />
-              </div>
-              {detected.serverSideAvailable === false && (
-                <span className="text-[10.5px] text-black/40">HTML-only</span>
-              )}
-            </>
-          ) : (
-            <DetectPlatformButton siteId={siteId} />
-          )}
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-black/8 px-5 py-3.5">
+        <h2 className="text-[13px] font-semibold tracking-tight text-black">
+          Install
+        </h2>
+        {detected ? (
+          <div className="flex items-center gap-2">
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-black/3 py-1 pl-2.5 pr-1">
+              <span
+                className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500"
+                aria-hidden
+              />
+              <span className="font-mono text-[11px] leading-none text-black">
+                {detected.label}
+              </span>
+              <ResetPlatformButton siteId={siteId} />
+            </div>
+            {detected.serverSideAvailable === false && (
+              <span className="text-[10.5px] text-black/40">HTML-only</span>
+            )}
+          </div>
+        ) : (
+          <DetectPlatformButton siteId={siteId} />
+        )}
       </div>
 
-      {/* Primary surface — copy the prompt, hand it to your AI editor. */}
-      <div className="px-6 py-6">
+      {/* Primary path — copy the AI prompt, hand it to your editor. */}
+      <div className="px-5 py-5">
+        <div className="flex items-start gap-3">
+          <span
+            className="mt-px flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-black text-white"
+            aria-hidden
+          >
+            <SparkIcon />
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-[13px] font-semibold tracking-tight text-black">
+              Install with your AI editor
+            </h3>
+            <p className="mt-0.5 text-[12.5px] leading-relaxed text-black/55">
+              Copy the prompt and paste it into Cursor, Claude Code, or
+              Windsurf — it edits the files for you.
+              {detected ? ` Tailored for ${detected.label}.` : ""}
+            </p>
+          </div>
+        </div>
+
         <button
           type="button"
           onClick={copyPrompt}
           disabled={!promptTab}
-          className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-[13px] font-medium transition-colors disabled:opacity-50 ${copied
+          className={`mt-4 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-[13px] font-medium transition-colors disabled:opacity-50 ${copied
               ? "bg-emerald-600 text-white"
               : "bg-black text-white hover:bg-black/85"
             }`}
         >
           {copied ? <CheckIcon /> : <ClipboardIcon />}
-          {copied
-            ? "Copied — paste it into your AI editor"
-            : "Copy install prompt"}
+          {copied ? "Copied to clipboard" : "Copy install prompt"}
         </button>
-        <p className="mt-2 text-center text-[12px] text-black/50">
-          Paste into Cursor, Claude Code, or Windsurf.
-          {detected ? ` Tailored for ${detected.label}.` : ""}
-        </p>
-        <p className="mt-4 text-center text-[12.5px] text-black/70">
-          Paste the prompt, your AI handles the rest.
-        </p>
 
         {confirmed ? (
-          <div className="mt-5 flex items-center justify-center gap-1.5 text-[12.5px] text-emerald-700">
+          <div className="mt-3 flex items-center justify-center gap-1.5 rounded-lg border border-emerald-600/25 bg-emerald-50 px-4 py-2.5 text-[12.5px] font-medium text-emerald-700">
             <CheckIcon />
             Install confirmed
           </div>
         ) : (
           <VerifyInstall siteId={siteId} domain={domain} />
         )}
-
-        <div className="mt-5 flex items-center justify-center gap-3">
-          <TestPingButton siteId={siteId} />
-          <span className="select-none text-black/15">·</span>
-          <button
-            type="button"
-            onClick={() => setShowRaw((v) => !v)}
-            className="font-mono text-[11px] text-black/55 hover:text-black"
-          >
-            {showRaw ? "Hide raw code" : "Show raw code →"}
-          </button>
-        </div>
       </div>
 
-      {/* Raw-code fallback — the original per-stack tabs + 01/02/03 steps.
-          Only relevant for the DIY path, so it lives in here, collapsed. */}
-      {showRaw && tab && (
-        <div className="border-t border-black/8">
-          <div className="flex gap-0.5 overflow-x-auto border-b border-black/8 px-3 py-2">
-            {rawTabs.map((s) => (
-              <button
-                key={s.key}
-                type="button"
-                onClick={() => setActive(s.key)}
-                className={`shrink-0 rounded px-2.5 py-1 text-[12px] transition-colors ${s.key === active
-                    ? "bg-black/8 text-black"
-                    : "text-black/55 hover:bg-black/3 hover:text-black"
-                  }`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
+      {/* DIY fallback — per-stack code + 01/02/03 steps, collapsed by default
+          behind a proper disclosure row rather than a stray text link. */}
+      <div className="border-t border-black/8">
+        <button
+          type="button"
+          onClick={() => setShowRaw((v) => !v)}
+          aria-expanded={showRaw}
+          className="flex w-full items-center justify-between gap-4 px-5 py-3 text-left transition-colors hover:bg-black/2"
+        >
+          <span className="text-[12.5px] font-medium text-black/70">
+            Prefer to paste the code yourself?
+          </span>
+          <span className="flex shrink-0 items-center gap-1 text-[11.5px] text-black/45">
+            {showRaw ? "Hide" : "Show raw code"}
+            <ChevronIcon open={showRaw} />
+          </span>
+        </button>
 
-          <div className="px-6 py-5">
-            <p className="text-[12.5px] text-black/60">{tab.blurb}</p>
-            <ol className="mt-5 space-y-5">
-              <Step number="01" title="Copy">
-                <CodeBlock body={tab.body} lang={tab.lang} />
-              </Step>
-              <Step number="02" title={tab.pasteInstruction} />
-              <Step
-                number="03"
-                title={tab.doneInstruction ?? DEFAULT_DONE}
-                muted
-              />
-            </ol>
+        {showRaw && tab && (
+          <div className="border-t border-black/8 bg-black/2">
+            <div className="flex gap-0.5 overflow-x-auto px-3 pt-3">
+              {rawTabs.map((s) => (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => setActive(s.key)}
+                  className={`shrink-0 rounded-md px-2.5 py-1 text-[12px] transition-colors ${s.key === active
+                      ? "bg-white text-black shadow-sm ring-1 ring-black/8"
+                      : "text-black/55 hover:bg-black/3 hover:text-black"
+                    }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="px-5 py-5">
+              <p className="text-[12.5px] text-black/60">{tab.blurb}</p>
+              <ol className="mt-4 space-y-4">
+                <Step number="01" title="Copy">
+                  <CodeBlock body={tab.body} lang={tab.lang} />
+                </Step>
+                <Step number="02" title={tab.pasteInstruction} />
+                <Step
+                  number="03"
+                  title={tab.doneInstruction ?? DEFAULT_DONE}
+                  muted
+                />
+              </ol>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </section>
-  );
-}
-
-function TestPingButton({ siteId }: { siteId: string }) {
-  const [pending, startTransition] = useTransition();
-  return (
-    <form
-      action={(fd) => {
-        startTransition(() => sendTestPingAction(fd));
-      }}
-    >
-      <input type="hidden" name="siteId" value={siteId} />
-      <button
-        type="submit"
-        disabled={pending}
-        className="font-mono text-[11px] text-black/55 hover:text-black disabled:opacity-50"
-      >
-        {pending ? "sending…" : "Send a test ping →"}
-      </button>
-    </form>
   );
 }
 
@@ -210,7 +201,7 @@ function VerifyInstall({
   >(verifyInstallAction, null);
 
   return (
-    <form action={formAction} className="mt-5">
+    <form action={formAction} className="mt-3">
       <input type="hidden" name="siteId" value={siteId} />
 
       {result?.status === "installed" && (
@@ -282,6 +273,7 @@ function DetectPlatformButton({ siteId }: { siteId: string }) {
       action={(fd) => {
         startTransition(() => redetectStackAction(fd));
       }}
+      className="inline-flex"
     >
       <input type="hidden" name="siteId" value={siteId} />
       <button
@@ -297,27 +289,77 @@ function DetectPlatformButton({ siteId }: { siteId: string }) {
 }
 
 // Clears a detected platform — the small ✕ inside the platform chip. Drops
-// the header back to the "Detect platform" control.
+// the header back to the "Detect platform" control. The form is inline-flex so
+// the ✕ sits centered with the status dot and label rather than on its own
+// block line, and it swaps to a spinner while the reset is in flight.
 function ResetPlatformButton({ siteId }: { siteId: string }) {
+  const [pending, startTransition] = useTransition();
   return (
-    <form action={resetStackAction}>
+    <form
+      action={(fd) => {
+        startTransition(() => resetStackAction(fd));
+      }}
+      className="inline-flex"
+    >
       <input type="hidden" name="siteId" value={siteId} />
       <button
         type="submit"
+        disabled={pending}
         aria-label="Clear detected platform"
         title="Clear detected platform"
-        className="inline-flex h-4 w-4 items-center justify-center rounded-full text-black/30 transition-colors hover:bg-black/10 hover:text-black/70"
+        className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-black/30 transition-colors hover:bg-black/10 hover:text-black/70 disabled:opacity-50"
       >
-        <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden>
-          <path
-            d="M1.4 1.4 L6.6 6.6 M6.6 1.4 L1.4 6.6"
-            stroke="currentColor"
-            strokeWidth="1.4"
-            strokeLinecap="round"
-          />
-        </svg>
+        {pending ? (
+          <Spinner />
+        ) : (
+          <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden>
+            <path
+              d="M1.4 1.4 L6.6 6.6 M6.6 1.4 L1.4 6.6"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+            />
+          </svg>
+        )}
       </button>
     </form>
+  );
+}
+
+// Four-point spark — marks the AI-editor install path.
+function SparkIcon() {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 14 14"
+      fill="currentColor"
+      aria-hidden
+    >
+      <path d="M7 0.5 L8.3 5.7 L13.5 7 L8.3 8.3 L7 13.5 L5.7 8.3 L0.5 7 L5.7 5.7 Z" />
+    </svg>
+  );
+}
+
+// Disclosure chevron for the "Show raw code" row.
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 10 10"
+      fill="none"
+      className={`transition-transform ${open ? "rotate-180" : ""}`}
+      aria-hidden
+    >
+      <path
+        d="M2.5 4 L5 6.5 L7.5 4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 

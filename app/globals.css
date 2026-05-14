@@ -94,6 +94,14 @@
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
   }
+  /* Tailwind v4's preflight no longer sets cursor:pointer on buttons — restore
+     it for every interactive control, except while disabled. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  label[for],
+  summary {
+    cursor: pointer;
+  }
 }
 
 @keyframes gradient {
