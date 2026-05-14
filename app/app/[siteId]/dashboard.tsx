@@ -18,6 +18,7 @@ import {
   hiddenWidgets,
   type LayoutItem,
   type WidgetKey,
+  type WidgetMeta,
 } from "@/lib/dashboard-widgets";
 import { saveDashboardLayoutAction } from "@/app/app/actions";
 import { TEST_PING_SOURCE } from "@/lib/test-ping";
@@ -288,10 +289,6 @@ export function Dashboard({
 
   const [selectedEvent, setSelectedEvent] = useState<RecentEventRow | null>(null);
 
-  // Set once the user copies the install prompt — escalates the first-run
-  // "watching for crawlers" surface into its loud, animated state.
-  const [promptArmed, setPromptArmed] = useState(false);
-
   const [live, setLive] = useState(false);
   const liveRef = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
@@ -312,6 +309,16 @@ export function Dashboard({
       liveRef.current = null;
     };
   }, [live, editMode, router]);
+
+  // Until the first real event lands, poll so the page promotes itself into
+  // the live dashboard the moment one arrives — no manual refresh. Test pings
+  // don't count toward hasData, so this keeps running through the
+  // install-confirm step and stops only once real traffic shows up.
+  useEffect(() => {
+    if (hasData) return;
+    const id = setInterval(() => router.refresh(), 8000);
+    return () => clearInterval(id);
+  }, [hasData, router]);
 
   const activeLayout = editMode ? draftLayout : layout;
   const hidden = hiddenWidgets(activeLayout);
@@ -563,6 +570,7 @@ export function Dashboard({
             <div className="flex items-center gap-2">
               {editMode ? (
                 <>
+                  <AddComponentMenu hidden={hidden} onAdd={showWidget} />
                   <button
                     type="button"
                     onClick={cancelEdit}
@@ -640,13 +648,18 @@ export function Dashboard({
 
         {!hasData ? (
           <>
+            {/* New site, no real events yet: the install card is the whole
+                page. Confirming the install fires a test ping, which lands in
+                the recent feed, flips testPinged and reveals the waiting
+                surface below — and the first real event flips hasData and
+                swaps in the full dashboard. */}
             <InstallCard
               snippets={snippets}
               detected={detected}
               siteId={site.id}
-              onPromptCopied={() => setPromptArmed(true)}
+              confirmed={testPinged}
             />
-            <WatchingForEvents armed={promptArmed} testPinged={testPinged} />
+            {testPinged && <WatchingForEvents />}
           </>
         ) : (
           <>
@@ -704,28 +717,6 @@ export function Dashboard({
                 </GridLayout>
               )}
             </div>
-
-            {editMode && hidden.length > 0 && (
-              <section className="rounded-lg border border-dashed border-black/15 bg-white/60 p-4">
-                <div className="mb-3 text-[10px] font-medium uppercase tracking-wide text-black/45">
-                  Hidden widgets · click to add back
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {hidden.map((w) => (
-                    <button
-                      key={w.key}
-                      type="button"
-                      onClick={() => showWidget(w.key)}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-black/10 bg-white px-2.5 py-1 text-[12px] text-black/70 hover:bg-black/5 hover:text-black"
-                    >
-                      <span>+</span>
-                      <span>{w.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-
           </>
         )}
       </div>
@@ -734,6 +725,94 @@ export function Dashboard({
         onClose={() => setSelectedEvent(null)}
       />
     </main>
+  );
+}
+
+// Edit-mode control for adding hidden widgets back onto the dashboard. Sits in
+// the toolbar next to Cancel / Save so the "add a component" affordance is
+// visible the moment you enter edit mode — not buried in a panel below the
+// grid. Disabled (with a hint) once every widget is already placed.
+function AddComponentMenu({
+  hidden,
+  onAdd,
+}: {
+  hidden: WidgetMeta[];
+  onAdd: (key: WidgetKey) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const empty = hidden.length === 0;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => !empty && setOpen((v) => !v)}
+        disabled={empty}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={
+          empty ? "Every component is already on this dashboard" : undefined
+        }
+        className="inline-flex items-center gap-1.5 rounded-md border border-black/15 bg-white px-2.5 py-1 text-[12px] font-medium text-black shadow-sm transition-colors hover:bg-black/3 disabled:cursor-not-allowed disabled:text-black/30 disabled:shadow-none"
+      >
+        <span className="text-[14px] leading-none">+</span>
+        Add component
+        {!empty && (
+          <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-black px-1 text-[10px] font-semibold tabular-nums text-white">
+            {hidden.length}
+          </span>
+        )}
+      </button>
+      {open && !empty && (
+        <div
+          className="absolute right-0 top-full z-30 mt-1.5 w-72 rounded-lg border border-black/10 bg-white p-1 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.12)]"
+          role="menu"
+        >
+          <div className="px-2 py-1.5 text-[10px] font-medium uppercase tracking-wide text-black/40">
+            Add a component
+          </div>
+          {hidden.map((w) => (
+            <button
+              key={w.key}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                onAdd(w.key);
+                // Last hidden widget just added — nothing left to pick.
+                if (hidden.length === 1) setOpen(false);
+              }}
+              className="block w-full rounded-md px-2 py-1.5 text-left hover:bg-black/5"
+            >
+              <div className="flex items-center gap-1.5 text-[12.5px] text-black">
+                <span className="text-black/40">+</span>
+                {w.label}
+              </div>
+              <div className="mt-0.5 pl-[19px] text-[11px] leading-snug text-black/45">
+                {w.description}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1174,103 +1253,36 @@ function Section({
   );
 }
 
-// Bots we name-drop in the first-run "watching" animation — the crawlers
-// users actually recognise and are waiting to see show up.
-const WATCHED_BOTS = [
-  "ClaudeBot",
-  "GPTBot",
-  "PerplexityBot",
-  "Google-Extended",
-  "OAI-SearchBot",
-  "Bytespider",
-];
-
-// First-run surface shown until the very first real event lands. It polls the
-// server on a timer so the dashboard lights up on its own — the moment a real
-// event arrives, hasData flips and this whole component unmounts. Once the
-// user has copied the install prompt it escalates into a loud, animated
-// "watching for <bot>…" state — that's the payoff moment, so sell it.
+// First-run surface shown once a test ping has landed but before the first
+// real event. The Dashboard polls while hasData is false, so this page lights
+// up on its own — the moment a real event arrives hasData flips and this
+// whole component unmounts, swapping in the full dashboard.
 //
-// testPinged: a synthetic test ping has landed. Test pings are excluded from
-// hasData server-side, so they never unmount this surface — instead we show an
-// inline "pipeline works" confirmation, which is exactly what a pre-install
-// sanity check should feel like.
-function WatchingForEvents({
-  armed,
-  testPinged,
-}: {
-  armed: boolean;
-  testPinged: boolean;
-}) {
-  const router = useRouter();
-
-  useEffect(() => {
-    const id = setInterval(() => router.refresh(), 8000);
-    return () => clearInterval(id);
-  }, [router]);
-
-  const [botIdx, setBotIdx] = useState(0);
-  useEffect(() => {
-    if (!armed) return;
-    const id = setInterval(
-      () => setBotIdx((i) => (i + 1) % WATCHED_BOTS.length),
-      1400
-    );
-    return () => clearInterval(id);
-  }, [armed]);
-
-  const title = testPinged
-    ? "Test ping received"
-    : armed
-      ? "Watching for crawlers"
-      : "Waiting for first event";
-
+// Test pings are excluded from hasData server-side, so the ping fired from the
+// install card never unmounts this surface — it just confirms, inline and
+// immediately, that the ingest pipeline works end to end.
+function WatchingForEvents() {
   return (
-    <Section title={title} right={armed || testPinged ? "live" : undefined}>
-      {testPinged ? (
-        <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-              <path
-                d="M3 7.5 L6 10.5 L11 4"
-                stroke="#059669"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </span>
-          <div className="text-[14px] text-black">
-            Your ingest pipeline works
-          </div>
-          <p className="max-w-sm text-[12.5px] text-black/50">
-            That test ping reached Beam and is in your recent events. Now run
-            the install prompt so real crawler hits land here too — this page
-            updates itself the second they do.
-          </p>
-        </div>
-      ) : armed ? (
-        <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-          </span>
-          <div className="text-[14px] text-black">
-            Watching for{" "}
-            <span className="font-mono text-black">{WATCHED_BOTS[botIdx]}</span>
-            <span className="text-black/40">…</span>
-          </div>
-          <p className="max-w-sm text-[12.5px] text-black/50">
-            Your AI editor is wiring up Beam. This page lights up the second
-            your first crawler hit lands — no refresh needed.
-          </p>
-        </div>
-      ) : (
-        <div className="px-6 py-8 text-[13px] text-black/55">
-          Copy the install prompt above and paste it into your AI editor.
-          Events arrive within seconds — this page updates itself.
-        </div>
-      )}
+    <Section title="Waiting for your first event" right="live">
+      <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+            <path
+              d="M3 7.5 L6 10.5 L11 4"
+              stroke="#059669"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+        <div className="text-[14px] text-black">Your ingest pipeline works</div>
+        <p className="max-w-sm text-[12.5px] text-black/50">
+          That test ping reached Beam and is sitting in your recent events. The
+          moment a real crawler or AI referral lands, this page promotes itself
+          to the full dashboard — no refresh needed.
+        </p>
+      </div>
     </Section>
   );
 }

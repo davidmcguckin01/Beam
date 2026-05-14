@@ -82,7 +82,15 @@ export default async function InstallPage({
           </Link>
         </div>
 
-        <InstallCard snippets={snippets} detected={detected} siteId={s.id} />
+        {/* This page is only reachable from the dashboard's "Install" link,
+            which appears once the site has real events — so the install is
+            already confirmed here. */}
+        <InstallCard
+          snippets={snippets}
+          detected={detected}
+          siteId={s.id}
+          confirmed
+        />
       </div>
     </main>
   );

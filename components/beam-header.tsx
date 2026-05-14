@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { setActiveOrgAction, createOrgAction } from "@/app/app/org-actions";
@@ -33,17 +33,19 @@ export function BeamHeader({
 }: Props) {
   return (
     <header className="sticky top-0 z-10 border-b border-black/8 bg-white/85 backdrop-blur">
-      <div className="flex h-12 items-center justify-between gap-3 px-6">
-        <div className="flex min-w-0 items-center gap-2 text-[13px]">
+      <div className="flex h-12 items-center justify-between gap-2 px-4 sm:gap-3 sm:px-6">
+        <div className="flex min-w-0 items-center gap-1.5 text-[13px] sm:gap-2">
           <Link
             href="/app"
-            className="inline-flex items-center gap-1.5 font-semibold text-black"
+            className="inline-flex shrink-0 items-center gap-1.5 font-semibold text-black"
             aria-label="Beam"
           >
             <Logo />
-            <span>Beam</span>
+            <span className="hidden sm:inline">Beam</span>
           </Link>
-          <Slash />
+          <span className="hidden sm:inline">
+            <Slash />
+          </span>
           <OrgSwitcher orgs={orgs} activeOrg={activeOrg} />
           {sites.length > 0 && (
             <>
@@ -53,7 +55,7 @@ export function BeamHeader({
           )}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <nav className="flex items-center gap-0.5">
             <Tab href="/app" active={current === "overview"}>
               Overview
@@ -62,7 +64,7 @@ export function BeamHeader({
               Settings
             </Tab>
           </nav>
-          <div className="h-5 w-px bg-black/10" />
+          <div className="hidden h-5 w-px bg-black/10 sm:block" />
           <UserButton
             appearance={{
               elements: {
@@ -91,7 +93,7 @@ function Tab({
   return (
     <Link
       href={href}
-      className={`rounded-md px-2.5 py-1 text-[13px] transition-colors ${
+      className={`rounded-md px-2 py-1 text-[12.5px] transition-colors sm:px-2.5 sm:text-[13px] ${
         active ? "text-black" : "text-black/50 hover:text-black"
       }`}
     >
@@ -109,8 +111,8 @@ function OrgSwitcher({ orgs, activeOrg }: { orgs: Org[]; activeOrg: Org }) {
           <Chevron open={open} />
         </>
       )}
-      triggerClassName="flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-black hover:bg-black/5"
-      menuClassName="w-64"
+      triggerClassName="flex min-w-0 cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-black hover:bg-black/5"
+      menuClassName="w-64 max-w-[calc(100vw-2rem)]"
     >
       {(close) => (
         <>
@@ -213,8 +215,8 @@ function SiteSwitcher({
           <Chevron open={open} />
         </>
       )}
-      triggerClassName="flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-black/5"
-      menuClassName="w-72"
+      triggerClassName="flex min-w-0 cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-black/5"
+      menuClassName="w-72 max-w-[calc(100vw-2rem)]"
     >
       {(close) => (
         <>
@@ -280,7 +282,7 @@ function SiteSwitcher({
                     Edit domain
                   </div>
                   <input type="hidden" name="siteId" value={menu.id} />
-                  <div className="flex gap-1">
+                  <div className="flex items-center gap-1">
                     <input
                       type="text"
                       name="domain"
@@ -314,12 +316,17 @@ function SiteSwitcher({
                   </button>
                   <form
                     action={deleteSiteAction}
-                    onSubmit={() => {
-                      setMenu(null);
-                      close();
-                    }}
+                    // Close just the context menu — leave the switcher dropdown
+                    // open so the user can manage more sites. The action only
+                    // navigates if they deleted the site they're viewing.
+                    onSubmit={() => setMenu(null)}
                   >
                     <input type="hidden" name="siteId" value={menu.id} />
+                    <input
+                      type="hidden"
+                      name="activeSiteId"
+                      value={activeSite?.id ?? ""}
+                    />
                     <button
                       type="submit"
                       className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-[12.5px] text-red-600 hover:bg-red-50"
@@ -337,27 +344,7 @@ function SiteSwitcher({
           )}
 
           <div className="my-1 h-px bg-black/8" />
-          <form action={createSiteAction} className="p-1">
-            <div className="px-1 pb-1 text-[10px] font-medium uppercase tracking-wide text-black/40">
-              Add a site
-            </div>
-            <div className="flex gap-1">
-              <input
-                type="text"
-                name="domain"
-                required
-                placeholder="example.com"
-                autoComplete="off"
-                className="block w-full rounded-md border border-black/10 bg-white px-2 py-1.5 font-mono text-[12.5px] text-black placeholder:text-black/30 focus:border-black/40 focus:outline-none"
-              />
-              <button
-                type="submit"
-                className="inline-flex h-7 items-center rounded-md bg-black px-2.5 text-[11px] font-medium text-white hover:bg-black/85"
-              >
-                Add
-              </button>
-            </div>
-          </form>
+          <AddSiteForm />
         </>
       )}
     </Dropdown>
@@ -396,7 +383,7 @@ function Dropdown({
   }, [open]);
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative min-w-0">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -439,7 +426,7 @@ function Chevron({ open = false }: { open?: boolean }) {
       height="10"
       viewBox="0 0 10 10"
       fill="none"
-      className={`text-black/40 transition-transform ${open ? "rotate-180" : ""}`}
+      className={`shrink-0 text-black/40 transition-transform ${open ? "rotate-180" : ""}`}
       aria-hidden
     >
       <path
@@ -511,6 +498,79 @@ function Pencil() {
         strokeWidth="1.1"
         strokeLinecap="round"
         strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+// "Add a site" form at the foot of the site switcher. createSiteAction
+// detects the stack server-side and redirects, so it's not instant — show a
+// spinner on the button (and lock the input) while the transition is in
+// flight.
+function AddSiteForm() {
+  const [pending, startTransition] = useTransition();
+  return (
+    <form
+      action={(fd) => {
+        startTransition(() => createSiteAction(fd));
+      }}
+      className="p-1"
+    >
+      <div className="px-1 pb-1 text-[10px] font-medium uppercase tracking-wide text-black/40">
+        Add a site
+      </div>
+      <div className="flex items-center gap-1">
+        <input
+          type="text"
+          name="domain"
+          required
+          disabled={pending}
+          placeholder="example.com"
+          autoComplete="off"
+          className="block w-full rounded-md border border-black/10 bg-white px-2 py-1.5 font-mono text-[12.5px] text-black placeholder:text-black/30 focus:border-black/40 focus:outline-none disabled:opacity-50"
+        />
+        <button
+          type="submit"
+          disabled={pending}
+          className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md bg-black px-2.5 text-[11px] font-medium text-white hover:bg-black/85 disabled:opacity-60"
+        >
+          {pending ? (
+            <>
+              <Spinner />
+              Adding…
+            </>
+          ) : (
+            "Add"
+          )}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function Spinner() {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 12 12"
+      fill="none"
+      className="animate-spin"
+      aria-hidden
+    >
+      <circle
+        cx="6"
+        cy="6"
+        r="4.5"
+        stroke="currentColor"
+        strokeOpacity="0.25"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M6 1.5 A4.5 4.5 0 0 1 10.5 6"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
       />
     </svg>
   );

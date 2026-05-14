@@ -90,6 +90,11 @@ export async function deleteSiteAction(formData: FormData) {
   const siteId = String(formData.get("siteId") || "");
   if (!siteId) redirect("/app");
 
+  // The site whose dashboard the user is currently viewing, if any. Deleting
+  // that site forces a navigation; deleting any other site just refreshes the
+  // switcher in place so its dropdown stays open.
+  const activeSiteId = String(formData.get("activeSiteId") || "");
+
   const rows = await db
     .select()
     .from(site)
@@ -103,8 +108,13 @@ export async function deleteSiteAction(formData: FormData) {
 
   await db.delete(site).where(eq(site.id, s.id));
 
-  revalidatePath("/app");
-  redirect("/app");
+  // Revalidate the whole /app subtree so the site switcher updates on
+  // whatever page it's currently rendered on.
+  revalidatePath("/app", "layout");
+
+  // Only navigate when the user deleted the site they were viewing — its
+  // dashboard route no longer exists. Otherwise stay put.
+  if (activeSiteId && activeSiteId === s.id) redirect("/app");
 }
 
 // Edit a site's domain after creation. Runs the same normalisation as

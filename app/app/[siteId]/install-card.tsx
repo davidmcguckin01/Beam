@@ -19,12 +19,14 @@ export function InstallCard({
   snippets,
   detected,
   siteId,
-  onPromptCopied,
+  confirmed,
 }: {
   snippets: SnippetTab[];
   detected: DetectedInfo;
   siteId: string;
-  onPromptCopied?: () => void;
+  // True once a test ping (or real event) has landed — the install is
+  // confirmed, so the prominent "Done" button gives way to a quiet check.
+  confirmed: boolean;
 }) {
   // The AI-agent install prompt is the primary path — most users paste it
   // straight into Cursor / Claude Code / Windsurf. The raw per-stack code
@@ -42,7 +44,6 @@ export function InstallCard({
     try {
       await navigator.clipboard.writeText(promptTab.body);
       setCopied(true);
-      onPromptCopied?.();
       setTimeout(() => setCopied(false), 2500);
     } catch {}
   };
@@ -101,6 +102,15 @@ export function InstallCard({
         <p className="mt-4 text-center text-[12.5px] text-black/70">
           Paste the prompt, your AI handles the rest.
         </p>
+
+        {confirmed ? (
+          <div className="mt-5 flex items-center justify-center gap-1.5 text-[12.5px] text-emerald-700">
+            <CheckIcon />
+            Install confirmed
+          </div>
+        ) : (
+          <DoneButton siteId={siteId} />
+        )}
 
         <div className="mt-5 flex items-center justify-center gap-3">
           <TestPingButton siteId={siteId} />
@@ -171,6 +181,39 @@ function TestPingButton({ siteId }: { siteId: string }) {
         className="font-mono text-[11px] text-black/55 hover:text-black disabled:opacity-50"
       >
         {pending ? "sending…" : "Send a test ping →"}
+      </button>
+    </form>
+  );
+}
+
+// The primary "I've installed it" confirmation. Fires a single test ping —
+// that synthetic event proves the ingest pipeline works end to end and, by
+// landing in the recent feed, flips the page into its "waiting for events"
+// state. The smaller TestPingButton above stays mounted as a manual
+// re-trigger.
+function DoneButton({ siteId }: { siteId: string }) {
+  const [pending, startTransition] = useTransition();
+  return (
+    <form
+      className="mt-5"
+      action={(fd) => {
+        startTransition(() => sendTestPingAction(fd));
+      }}
+    >
+      <input type="hidden" name="siteId" value={siteId} />
+      <button
+        type="submit"
+        disabled={pending}
+        className="flex w-full items-center justify-center gap-2 rounded-lg border border-black/15 bg-white px-4 py-2.5 text-[13px] font-medium text-black transition-colors hover:bg-black/3 disabled:opacity-60"
+      >
+        {pending ? (
+          <>
+            <Spinner />
+            Pinging your site…
+          </>
+        ) : (
+          "Done — I've installed it"
+        )}
       </button>
     </form>
   );
