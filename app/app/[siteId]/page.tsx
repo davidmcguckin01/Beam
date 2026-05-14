@@ -71,17 +71,28 @@ export default async function SiteDashboardPage({
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-  const humanEvents = await db
-    .select()
+  // AI referrals bucketed by UTC day + source, for the "AI sources" chart.
+  // Aggregated in SQL — never pull raw human-event rows into the page, a
+  // busy site can have millions of them inside the 30-day window.
+  const aiDailyRows = await db
+    .select({
+      day: sql<string>`to_char(date_trunc('day', ${event.ts}), 'YYYY-MM-DD')`,
+      source: event.source,
+      count: sql<number>`count(*)::int`,
+    })
     .from(event)
     .where(
       and(
         eq(event.siteId, s.id),
         gte(event.ts, thirtyDaysAgo),
-        eq(event.kind, "human")
+        eq(event.kind, "human"),
+        isNotNull(event.source),
+        sql`${event.source} != ${TEST_PING_SOURCE}`
       )
     )
-    .orderBy(desc(event.ts));
+    .groupBy(sql`date_trunc('day', ${event.ts})`, event.source);
+
+  const totalAi = aiDailyRows.reduce((n, r) => n + Number(r.count), 0);
 
   // Recent activity feed — humans + crawlers together, newest first,
   // paginated. Sized for click-through to event detail.
@@ -163,6 +174,26 @@ export default async function SiteDashboardPage({
     .orderBy(desc(sql`count(*)`));
 
   const crawlerTotal = crawlerRows.reduce((n, c) => n + Number(c.count), 0);
+
+  // Crawler hits grouped by country — the "Crawler traffic by country"
+  // widget. Top 20 only; that's all the widget renders.
+  const crawlerCountryRows = await db
+    .select({
+      country: event.country,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(event)
+    .where(
+      and(
+        eq(event.siteId, s.id),
+        gte(event.ts, thirtyDaysAgo),
+        eq(event.kind, "crawler"),
+        isNotNull(event.country)
+      )
+    )
+    .groupBy(event.country)
+    .orderBy(desc(sql`count(*)`))
+    .limit(20);
 
   // Top pages — URLs by AI referral count over the last 30 days.
   const topPagesRows = await db
@@ -281,15 +312,12 @@ export default async function SiteDashboardPage({
         sites: orgSites,
       }}
       site={{ id: s.id, domain: s.domain, apiKey: s.apiKey }}
-      events={humanEvents.map((e) => ({
-        id: e.id,
-        ts: e.ts.toISOString(),
-        url: e.url,
-        referrer: e.referrer,
-        referrerHost: e.referrerHost,
-        source: e.source,
-        country: e.country,
+      aiDaily={aiDailyRows.map((r) => ({
+        day: r.day,
+        source: r.source as string,
+        count: Number(r.count),
       }))}
+      totalAi={totalAi}
       recentAll={recentAllEvents.map((e) => ({
         id: e.id,
         ts: e.ts.toISOString(),
@@ -328,6 +356,10 @@ export default async function SiteDashboardPage({
         last: c.last ? new Date(c.last).toISOString() : null,
       }))}
       crawlerTotal={crawlerTotal}
+      crawlerCountries={crawlerCountryRows.map((r) => ({
+        country: r.country as string,
+        count: Number(r.count),
+      }))}
       totalEventsAllTime={totalEventsAllTime}
       lastEventAllTime={lastEventAllTime}
       topPages={topPagesRows.map((r) => ({

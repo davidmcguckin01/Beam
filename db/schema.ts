@@ -956,7 +956,16 @@ export const event = pgTable(
       table.siteId,
       table.referrerHost
     ),
-    siteIdKindIdx: index("event_site_kind_idx").on(table.siteId, table.kind),
+    // Composite (siteId, kind, ts) — serves the dashboard's per-kind,
+    // 30-day-window aggregations (crawler/AI breakdowns) in a single index
+    // range scan instead of a bitmap-AND of two narrower indexes, and still
+    // covers plain (siteId, kind) lookups as a prefix. Supersedes the old
+    // event_site_kind_idx.
+    siteIdKindTsIdx: index("event_site_kind_ts_idx").on(
+      table.siteId,
+      table.kind,
+      table.ts
+    ),
     siteIdCategoryIdx: index("event_site_category_idx").on(
       table.siteId,
       table.botCategory

@@ -10,7 +10,6 @@ import GridLayout, {
 } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
-import { TEST_PING_SOURCE } from "@/lib/test-ping";
 import {
   GRID_COLS,
   GRID_ROW_HEIGHT,
@@ -39,15 +38,9 @@ import type { SnippetTab } from "@/lib/snippets";
 
 type Org = { id: string; name: string; role: string };
 
-type EventRow = {
-  id: string;
-  ts: string;
-  url: string;
-  referrer: string | null;
-  referrerHost: string | null;
-  source: string | null;
-  country: string | null;
-};
+// Pre-aggregated AI referral counts (one row per UTC day × source) — the
+// page buckets this in SQL so the dashboard never receives raw event rows.
+type AiDailyRow = { day: string; source: string; count: number };
 
 // Combined feed of recent events (human + crawler), used by the
 // "Recent events" widget. Carries the full set of fields the details modal
@@ -93,10 +86,12 @@ type Props = {
     sites: { id: string; domain: string }[];
   };
   site: { id: string; domain: string; apiKey: string };
-  events: EventRow[];
+  aiDaily: AiDailyRow[];
+  totalAi: number;
   topReferrers: { host: string; count: number }[];
   crawlers: CrawlerRow[];
   crawlerTotal: number;
+  crawlerCountries: { country: string; count: number }[];
   totalEventsAllTime: number;
   lastEventAllTime: string | null;
   topPages: { url: string; count: number }[];
@@ -171,6 +166,23 @@ function flagFor(country: string | null): string {
   );
 }
 
+// Country code → English name ("US" → "United States"). Intl.DisplayNames
+// is built into Node and the browser, so no dependency or lookup table.
+const REGION_NAMES =
+  typeof Intl !== "undefined" && "DisplayNames" in Intl
+    ? new Intl.DisplayNames(["en"], { type: "region" })
+    : null;
+
+function countryName(code: string): string {
+  const cc = (code || "").toUpperCase();
+  if (cc.length !== 2) return code || "Unknown";
+  try {
+    return REGION_NAMES?.of(cc) ?? cc;
+  } catch {
+    return cc;
+  }
+}
+
 function pathOf(url: string): string {
   try {
     const u = new URL(url);
@@ -184,14 +196,11 @@ function dayKey(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-function build30DayBuckets(events: EventRow[]) {
-  const sources = Array.from(
-    new Set(
-      events
-        .map((e) => e.source)
-        .filter((s): s is string => !!s && s !== TEST_PING_SOURCE)
-    )
-  ).sort();
+// Turn the SQL day×source aggregate into the dense 30-row shape recharts
+// wants (one row per day, a column per source, zero-filled). Rows already
+// exclude test pings and null sources — the page query filters those out.
+function build30DayBuckets(daily: AiDailyRow[]) {
+  const sources = Array.from(new Set(daily.map((d) => d.source))).sort();
   const days: string[] = [];
   const now = new Date();
   for (let i = 29; i >= 0; i--) {
@@ -206,12 +215,10 @@ function build30DayBuckets(events: EventRow[]) {
     return row;
   });
   const indexByDay = new Map(days.map((d, i) => [d, i]));
-  for (const e of events) {
-    if (!e.source || e.source === TEST_PING_SOURCE) continue;
-    const k = dayKey(new Date(e.ts));
-    const idx = indexByDay.get(k);
+  for (const r of daily) {
+    const idx = indexByDay.get(r.day);
     if (idx === undefined) continue;
-    rows[idx][e.source] = (rows[idx][e.source] as number) + 1;
+    rows[idx][r.source] = (rows[idx][r.source] as number) + r.count;
   }
   return { rows, sources };
 }
@@ -219,10 +226,12 @@ function build30DayBuckets(events: EventRow[]) {
 export function Dashboard({
   session,
   site,
-  events,
+  aiDaily,
+  totalAi,
   topReferrers,
   crawlers,
   crawlerTotal,
+  crawlerCountries,
   totalEventsAllTime,
   lastEventAllTime,
   topPages,
@@ -236,11 +245,10 @@ export function Dashboard({
   snippets,
   detected,
 }: Props) {
-  const totalAi = useMemo(
-    () => events.filter((e) => !!e.source && e.source !== TEST_PING_SOURCE).length,
-    [events]
+  const { rows, sources } = useMemo(
+    () => build30DayBuckets(aiDaily),
+    [aiDaily]
   );
-  const { rows, sources } = useMemo(() => build30DayBuckets(events), [events]);
 
   const byCategory = useMemo(() => {
     const m = new Map<Category, CrawlerRow[]>();
@@ -253,7 +261,9 @@ export function Dashboard({
     return m;
   }, [crawlers]);
 
-  const hasData = events.length > 0 || crawlers.length > 0;
+  // Any event (human or crawler) in the 30-day window — recentPagination.total
+  // is that exact count, already computed server-side.
+  const hasData = recentPagination.total > 0;
 
   const router = useRouter();
   const [refreshing, startRefresh] = useTransition();
@@ -479,6 +489,19 @@ export function Dashboard({
                   );
                 })}
               </div>
+            )}
+          </Section>
+        );
+      case "crawler-countries":
+        return (
+          <Section
+            title="Crawler traffic by country"
+            right="last 30 days · crawler hits"
+          >
+            {crawlerCountries.length === 0 ? (
+              <EmptyHint>No geo data on crawler hits yet.</EmptyHint>
+            ) : (
+              <CrawlerCountries data={crawlerCountries} />
             )}
           </Section>
         );
@@ -1354,6 +1377,56 @@ function TopReferrers({ data }: { data: { host: string; count: number }[] }) {
             </div>
             <div className="font-mono text-[13px] tabular-nums text-black">
               {r.count.toLocaleString()}
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+// Crawler hits ranked by country of origin — where scrapers come from.
+// A ranked flag + bar list rather than a geographic map: it's consistent
+// with the other breakdown widgets, ships no map/topojson payload, and the
+// data is already capped at the top 20 by the page query.
+function CrawlerCountries({
+  data,
+}: {
+  data: { country: string; count: number }[];
+}) {
+  const max = Math.max(...data.map((d) => d.count), 1);
+  const total = data.reduce((n, d) => n + d.count, 0);
+  return (
+    <ul className="divide-y divide-black/8">
+      {data.map((c) => {
+        const pct = Math.max(2, Math.round((c.count / max) * 100));
+        const share = total > 0 ? Math.round((c.count / total) * 100) : 0;
+        return (
+          <li
+            key={c.country}
+            className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-6 py-2.5"
+          >
+            <span className="text-[17px] leading-none">
+              {flagFor(c.country)}
+            </span>
+            <div className="min-w-0">
+              <div className="flex items-baseline gap-2">
+                <span className="truncate text-[12.5px] text-black">
+                  {countryName(c.country)}
+                </span>
+                <span className="ml-auto shrink-0 font-mono text-[10.5px] text-black/35">
+                  {share}%
+                </span>
+              </div>
+              <div className="mt-1 h-px w-full bg-black/8">
+                <div
+                  className="h-px bg-black/50"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+            <div className="font-mono text-[13px] tabular-nums text-black">
+              {c.count.toLocaleString()}
             </div>
           </li>
         );

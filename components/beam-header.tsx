@@ -171,14 +171,24 @@ function SiteSwitcher({
     x: number;
     y: number;
   } | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!menu) return;
+    const onPointer = (e: PointerEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenu(null);
+      }
+    };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setMenu(null);
     };
+    document.addEventListener("pointerdown", onPointer);
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
   }, [menu]);
 
   return (
@@ -238,44 +248,41 @@ function SiteSwitcher({
           )}
 
           {menu && (
-            <>
-              {/* Backdrop: catches the next click/right-click to dismiss. */}
-              <div
-                className="fixed inset-0 z-30"
-                onClick={() => setMenu(null)}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  setMenu(null);
-                }}
-              />
-              <div
-                className="fixed z-40 min-w-[176px] rounded-lg border border-black/10 bg-white p-1 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.12)]"
-                style={{ top: menu.y, left: menu.x }}
-              >
-                <div className="max-w-[200px] truncate px-2 pt-1 pb-0.5 font-mono text-[11px] text-black/45">
-                  {menu.domain}
-                </div>
-                <form
-                  action={deleteSiteAction}
-                  onSubmit={() => {
-                    setMenu(null);
-                    close();
-                  }}
-                >
-                  <input type="hidden" name="siteId" value={menu.id} />
-                  <button
-                    type="submit"
-                    className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-[12.5px] text-red-600 hover:bg-red-50"
-                  >
-                    <Trash />
-                    Delete site
-                  </button>
-                </form>
-                <div className="px-2 pt-0.5 pb-1 text-[10.5px] text-black/35">
-                  Removes all its events &amp; dashboards.
-                </div>
+            // Fixed-positioned context menu. The header's `backdrop-blur`
+            // makes it a containing block for fixed descendants, but the
+            // header sits flush in the viewport's top-left corner so
+            // menu.x/menu.y (clientX/clientY) still land correctly.
+            // Dismissal is handled by the document pointerdown/Escape
+            // listeners above — a `fixed inset-0` backdrop would be clipped
+            // to the header's height and never catch outside clicks.
+            <div
+              ref={menuRef}
+              className="fixed z-40 min-w-[176px] rounded-lg border border-black/10 bg-white p-1 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.12)]"
+              style={{ top: menu.y, left: menu.x }}
+            >
+              <div className="max-w-[200px] truncate px-2 pt-1 pb-0.5 font-mono text-[11px] text-black/45">
+                {menu.domain}
               </div>
-            </>
+              <form
+                action={deleteSiteAction}
+                onSubmit={() => {
+                  setMenu(null);
+                  close();
+                }}
+              >
+                <input type="hidden" name="siteId" value={menu.id} />
+                <button
+                  type="submit"
+                  className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-[12.5px] text-red-600 hover:bg-red-50"
+                >
+                  <Trash />
+                  Delete site
+                </button>
+              </form>
+              <div className="px-2 pt-0.5 pb-1 text-[10.5px] text-black/35">
+                Removes all its events &amp; dashboards.
+              </div>
+            </div>
           )}
 
           <div className="my-1 h-px bg-black/8" />

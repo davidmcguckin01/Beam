@@ -17,6 +17,7 @@ export type WidgetKey =
   | "revisit-velocity"
   | "top-referrers"
   | "crawlers"
+  | "crawler-countries"
   | "recent-events";
 
 export type WidgetMeta = {
@@ -99,6 +100,15 @@ export const WIDGETS: WidgetMeta[] = [
     minH: 6,
   },
   {
+    key: "crawler-countries",
+    label: "Crawler traffic by country",
+    description: "Where crawlers and scrapers are hitting your site from.",
+    defaultW: 6,
+    defaultH: 10,
+    minW: 4,
+    minH: 5,
+  },
+  {
     key: "top-pages",
     label: "Top pages",
     description: "URLs ranked by AI referral count over the last 30 days.",
@@ -147,6 +157,7 @@ export const DEFAULT_KEYS: WidgetKey[] = [
   "crawled-pages",
   "revisit-velocity",
   "crawlers",
+  "crawler-countries",
   "top-pages",
   "top-referrers",
   "recent-events",
