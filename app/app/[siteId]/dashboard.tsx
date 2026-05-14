@@ -1,11 +1,26 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
+import GridLayout, {
+  useContainerWidth,
+  type LayoutItem as RGLLayoutItem,
+} from "react-grid-layout";
+import "react-grid-layout/css/styles.css";
+import "react-resizable/css/styles.css";
 import { TEST_PING_SOURCE } from "@/lib/test-ping";
-import type { WidgetKey } from "@/lib/dashboard-widgets";
-import { CustomiseSheet } from "./customise-sheet";
+import {
+  GRID_COLS,
+  GRID_ROW_HEIGHT,
+  WIDGETS,
+  getWidgetMeta,
+  hiddenWidgets,
+  type LayoutItem,
+  type WidgetKey,
+} from "@/lib/dashboard-widgets";
+import { saveDashboardLayoutAction } from "@/app/app/actions";
 import {
   LineChart,
   Line,
@@ -20,6 +35,7 @@ import { BeamHeader } from "@/components/beam-header";
 import { InstallCard } from "./install-card";
 import type { SnippetTab } from "@/lib/snippets";
 
+
 type Org = { id: string; name: string; role: string };
 
 type EventRow = {
@@ -30,6 +46,20 @@ type EventRow = {
   referrerHost: string | null;
   source: string | null;
   country: string | null;
+};
+
+// Combined feed of recent events (human + crawler), used by the
+// "Recent events" widget.
+type RecentEventRow = {
+  id: string;
+  ts: string;
+  url: string;
+  referrerHost: string | null;
+  source: string | null;
+  country: string | null;
+  kind: "human" | "crawler";
+  botCategory: string | null;
+  verified: boolean;
 };
 
 type Category = "training" | "search" | "user" | "unknown";
@@ -63,7 +93,8 @@ type Props = {
     last: string | null;
     topBots: string;
   }[];
-  layout: WidgetKey[];
+  recentAll: RecentEventRow[];
+  layout: LayoutItem[];
   snippets: SnippetTab[];
   detected: { label: string; serverSideAvailable: boolean } | null;
 };
@@ -161,6 +192,7 @@ export function Dashboard({
   lastEventAllTime,
   topPages,
   crawledPages,
+  recentAll,
   layout,
   snippets,
   detected,
@@ -170,7 +202,6 @@ export function Dashboard({
     [events]
   );
   const { rows, sources } = useMemo(() => build30DayBuckets(events), [events]);
-  const recent = events.slice(0, 100);
 
   const byCategory = useMemo(() => {
     const m = new Map<Category, CrawlerRow[]>();
@@ -185,6 +216,196 @@ export function Dashboard({
 
   const hasData = events.length > 0 || crawlers.length > 0;
 
+  const router = useRouter();
+  const [refreshing, startRefresh] = useTransition();
+  const [savingLayout, startSaveLayout] = useTransition();
+  const [editMode, setEditMode] = useState(false);
+  const [draftLayout, setDraftLayout] = useState<LayoutItem[]>(layout);
+  const { width, containerRef, mounted } = useContainerWidth();
+
+  const activeLayout = editMode ? draftLayout : layout;
+  const hidden = hiddenWidgets(activeLayout);
+
+  const enterEdit = () => {
+    setDraftLayout(layout);
+    setEditMode(true);
+  };
+  const cancelEdit = () => {
+    setDraftLayout(layout);
+    setEditMode(false);
+  };
+  const saveLayout = () => {
+    const fd = new FormData();
+    fd.append("siteId", site.id);
+    fd.append("layout", JSON.stringify(draftLayout));
+    startSaveLayout(() => saveDashboardLayoutAction(fd));
+    setEditMode(false);
+  };
+
+  const onGridChange = (next: readonly RGLLayoutItem[]) => {
+    // react-grid-layout reports the full layout post-edit. Map back to our
+    // LayoutItem shape (only keep items whose key is a known widget).
+    const mapped: LayoutItem[] = next
+      .filter((l): l is RGLLayoutItem & { i: WidgetKey } =>
+        WIDGETS.some((w) => w.key === l.i)
+      )
+      .map((l) => ({ i: l.i, x: l.x, y: l.y, w: l.w, h: l.h }));
+    setDraftLayout(mapped);
+  };
+
+  const hideWidget = (key: WidgetKey) => {
+    setDraftLayout((prev) => prev.filter((l) => l.i !== key));
+  };
+
+  const showWidget = (key: WidgetKey) => {
+    const meta = getWidgetMeta(key);
+    const maxY = draftLayout.reduce((m, l) => Math.max(m, l.y + l.h), 0);
+    setDraftLayout((prev) => [
+      ...prev,
+      { i: key, x: 0, y: maxY, w: meta.defaultW, h: meta.defaultH },
+    ]);
+  };
+
+  const renderWidget = (key: WidgetKey) => {
+    switch (key) {
+      case "stats":
+        return (
+          <Stats
+            crawlers={crawlerTotal}
+            ai={totalAi}
+            total={totalEventsAllTime}
+            lastEventTs={lastEventAllTime}
+          />
+        );
+      case "ai-sources":
+        return (
+          <Section title="AI sources" right="last 30 days">
+            <div className="h-full min-h-0 w-full p-4">
+              {sources.length === 0 ? (
+                <div className="flex h-full items-center justify-center text-[13px] text-black/40">
+                  No AI referrals yet.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={rows}
+                    margin={{ top: 8, right: 16, bottom: 0, left: -16 }}
+                  >
+                    <CartesianGrid stroke="rgba(0,0,0,0.06)" vertical={false} />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 11, fill: "#666" }}
+                      axisLine={{ stroke: "rgba(0,0,0,0.1)" }}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tick={{ fontSize: 11, fill: "#666" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: "#ffffff",
+                        border: "1px solid rgba(0,0,0,0.1)",
+                        borderRadius: 6,
+                        fontSize: 12,
+                        color: "#000",
+                        boxShadow: "0 8px 24px -8px rgba(0,0,0,0.12)",
+                      }}
+                      labelStyle={{ color: "#000", fontWeight: 500 }}
+                      itemStyle={{ color: "#171717" }}
+                    />
+                    <Legend
+                      iconType="circle"
+                      wrapperStyle={{
+                        fontSize: 12,
+                        paddingTop: 8,
+                        color: "#525252",
+                      }}
+                    />
+                    {sources.map((src) => (
+                      <Line
+                        key={src}
+                        type="monotone"
+                        dataKey={src}
+                        stroke={colorFor(src)}
+                        strokeWidth={1.75}
+                        dot={false}
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </Section>
+        );
+      case "top-pages":
+        return (
+          <Section title="Top pages" right="last 30 days · AI traffic">
+            {topPages.length === 0 ? (
+              <EmptyHint>No AI-referred pageviews yet.</EmptyHint>
+            ) : (
+              <TopPages data={topPages} />
+            )}
+          </Section>
+        );
+      case "crawled-pages":
+        return (
+          <Section title="Crawled pages" right="last 30 days · crawler hits">
+            {crawledPages.length === 0 ? (
+              <EmptyHint>No crawler hits yet.</EmptyHint>
+            ) : (
+              <CrawledPages data={crawledPages} />
+            )}
+          </Section>
+        );
+      case "top-referrers":
+        return (
+          <Section title="Top non-AI referrers" right="last 30 days">
+            {topReferrers.length === 0 ? (
+              <EmptyHint>No non-AI referrals yet.</EmptyHint>
+            ) : (
+              <TopReferrers data={topReferrers} />
+            )}
+          </Section>
+        );
+      case "crawlers":
+        return (
+          <Section title="Crawler traffic" right="last 30 days">
+            {crawlers.length === 0 ? (
+              <EmptyHint>No crawler hits yet.</EmptyHint>
+            ) : (
+              <div className="divide-y divide-black/8">
+                {CATEGORY_ORDER.map((cat) => {
+                  const list = byCategory.get(cat);
+                  if (!list || list.length === 0) return null;
+                  return (
+                    <CategoryGroup key={cat} category={cat} list={list} />
+                  );
+                })}
+              </div>
+            )}
+          </Section>
+        );
+      case "recent-events":
+        return (
+          <Section
+            title="Recent events"
+            right={`${recentAll.length} shown · humans + bots`}
+          >
+            {recentAll.length === 0 ? (
+              <EmptyHint>No events yet.</EmptyHint>
+            ) : (
+              <RecentEventsList data={recentAll} />
+            )}
+          </Section>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[#fafafa] text-black antialiased">
       <BeamHeader
@@ -195,7 +416,7 @@ export function Dashboard({
         current={null}
       />
 
-      <div className="px-6 py-8 space-y-8">
+      <div className="px-6 py-8 space-y-6">
         {hasData && (
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -207,13 +428,50 @@ export function Dashboard({
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <Link
-                href={`/app/${site.id}/install`}
-                className="rounded-md border border-black/10 bg-white px-2.5 py-1 text-[12px] text-black/70 hover:bg-black/3 hover:text-black"
-              >
-                Install
-              </Link>
-              <CustomiseSheet siteId={site.id} layout={layout} />
+              {editMode ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={cancelEdit}
+                    className="rounded-md border border-black/10 bg-white px-2.5 py-1 text-[12px] text-black/70 hover:bg-black/3 hover:text-black"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveLayout}
+                    disabled={savingLayout}
+                    className="rounded-md bg-black px-2.5 py-1 text-[12px] font-medium text-white hover:bg-black/85 disabled:opacity-50"
+                  >
+                    {savingLayout ? "Saving…" : "Save layout"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => startRefresh(() => router.refresh())}
+                    disabled={refreshing}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-black/10 bg-white px-2.5 py-1 text-[12px] text-black/70 hover:bg-black/3 hover:text-black disabled:opacity-50"
+                  >
+                    <RefreshIcon spinning={refreshing} />
+                    {refreshing ? "Refreshing…" : "Refresh"}
+                  </button>
+                  <Link
+                    href={`/app/${site.id}/install`}
+                    className="rounded-md border border-black/10 bg-white px-2.5 py-1 text-[12px] text-black/70 hover:bg-black/3 hover:text-black"
+                  >
+                    Install
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={enterEdit}
+                    className="rounded-md border border-black/10 bg-white px-2.5 py-1 text-[12px] text-black/70 hover:bg-black/3 hover:text-black"
+                  >
+                    Edit layout
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -234,195 +492,82 @@ export function Dashboard({
           </>
         ) : (
           <>
-            {layout.map((k) => {
-              switch (k) {
-                case "stats":
-                  return (
-                    <Stats
-                      key={k}
-                      ai={totalAi}
-                      crawlers={crawlerTotal}
-                      total={totalEventsAllTime}
-                      lastEventTs={lastEventAllTime}
-                    />
-                  );
-                case "ai-sources":
-                  return (
-                    <Section key={k} title="AI sources" right="last 30 days">
-                      <div className="h-72 w-full p-4">
-                        {sources.length === 0 ? (
-                          <div className="flex h-full items-center justify-center text-[13px] text-black/40">
-                            No AI referrals yet.
-                          </div>
-                        ) : (
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart
-                              data={rows}
-                              margin={{
-                                top: 8,
-                                right: 16,
-                                bottom: 0,
-                                left: -16,
-                              }}
-                            >
-                              <CartesianGrid
-                                stroke="rgba(0,0,0,0.06)"
-                                vertical={false}
-                              />
-                              <XAxis
-                                dataKey="date"
-                                tick={{ fontSize: 11, fill: "#666" }}
-                                axisLine={{ stroke: "rgba(0,0,0,0.1)" }}
-                                tickLine={false}
-                              />
-                              <YAxis
-                                allowDecimals={false}
-                                tick={{ fontSize: 11, fill: "#666" }}
-                                axisLine={false}
-                                tickLine={false}
-                              />
-                              <Tooltip
-                                contentStyle={{
-                                  background: "#ffffff",
-                                  border: "1px solid rgba(0,0,0,0.1)",
-                                  borderRadius: 6,
-                                  fontSize: 12,
-                                  color: "#000",
-                                  boxShadow:
-                                    "0 8px 24px -8px rgba(0,0,0,0.12)",
-                                }}
-                                labelStyle={{
-                                  color: "#000",
-                                  fontWeight: 500,
-                                }}
-                                itemStyle={{ color: "#171717" }}
-                              />
-                              <Legend
-                                iconType="circle"
-                                wrapperStyle={{
-                                  fontSize: 12,
-                                  paddingTop: 8,
-                                  color: "#525252",
-                                }}
-                              />
-                              {sources.map((src) => (
-                                <Line
-                                  key={src}
-                                  type="monotone"
-                                  dataKey={src}
-                                  stroke={colorFor(src)}
-                                  strokeWidth={1.75}
-                                  dot={false}
-                                />
-                              ))}
-                            </LineChart>
-                          </ResponsiveContainer>
-                        )}
-                      </div>
-                    </Section>
-                  );
-                case "top-pages":
-                  if (topPages.length === 0) return null;
-                  return (
-                    <Section key={k} title="Top pages" right="last 30 days · AI traffic">
-                      <TopPages data={topPages} />
-                    </Section>
-                  );
-                case "crawled-pages":
-                  if (crawledPages.length === 0) return null;
-                  return (
-                    <Section
-                      key={k}
-                      title="Crawled pages"
-                      right="last 30 days · crawler hits"
+            <div ref={containerRef}>
+              {mounted && (
+                <GridLayout
+                  className={editMode ? "edit-mode" : ""}
+                  layout={activeLayout}
+                  width={width}
+                  gridConfig={{
+                    cols: GRID_COLS,
+                    rowHeight: GRID_ROW_HEIGHT,
+                    margin: [16, 16],
+                    containerPadding: [0, 0],
+                  }}
+                  dragConfig={{
+                    enabled: editMode,
+                    cancel: ".no-drag",
+                  }}
+                  resizeConfig={{ enabled: editMode }}
+                  onLayoutChange={onGridChange}
+                >
+                  {activeLayout.map((item) => (
+                <div
+                  key={item.i}
+                  className={`relative ${
+                    editMode
+                      ? "ring-2 ring-black/15 ring-offset-2 ring-offset-[#fafafa] rounded-lg"
+                      : ""
+                  }`}
+                >
+                  <div className="h-full min-h-0 overflow-hidden">
+                    {renderWidget(item.i)}
+                  </div>
+                  {editMode && (
+                    <button
+                      type="button"
+                      onClick={() => hideWidget(item.i)}
+                      className="no-drag absolute right-2 top-2 z-10 inline-flex h-6 w-6 items-center justify-center rounded-md border border-black/10 bg-white text-black/55 shadow-sm hover:bg-black/5 hover:text-black"
+                      aria-label="Hide widget"
+                      title="Hide widget"
                     >
-                      <CrawledPages data={crawledPages} />
-                    </Section>
-                  );
-                case "top-referrers":
-                  if (topReferrers.length === 0) return null;
-                  return (
-                    <Section
-                      key={k}
-                      title="Top non-AI referrers"
-                      right="last 30 days"
+                      <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden>
+                        <path
+                          d="M2 2 L9 9 M9 2 L2 9"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              ))}
+                </GridLayout>
+              )}
+            </div>
+
+            {editMode && hidden.length > 0 && (
+              <section className="rounded-lg border border-dashed border-black/15 bg-white/60 p-4">
+                <div className="mb-3 text-[10px] font-medium uppercase tracking-wide text-black/45">
+                  Hidden widgets · click to add back
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {hidden.map((w) => (
+                    <button
+                      key={w.key}
+                      type="button"
+                      onClick={() => showWidget(w.key)}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-black/10 bg-white px-2.5 py-1 text-[12px] text-black/70 hover:bg-black/5 hover:text-black"
                     >
-                      <TopReferrers data={topReferrers} />
-                    </Section>
-                  );
-                case "crawlers":
-                  if (crawlers.length === 0) return null;
-                  return (
-                    <Section
-                      key={k}
-                      title="Crawler traffic"
-                      right="last 30 days"
-                    >
-                      <div className="divide-y divide-black/8">
-                        {CATEGORY_ORDER.map((cat) => {
-                          const list = byCategory.get(cat);
-                          if (!list || list.length === 0) return null;
-                          return (
-                            <CategoryGroup
-                              key={cat}
-                              category={cat}
-                              list={list}
-                            />
-                          );
-                        })}
-                      </div>
-                    </Section>
-                  );
-                case "recent-events":
-                  return (
-                    <Section
-                      key={k}
-                      title="Recent events"
-                      right={`${recent.length} shown`}
-                    >
-                      <ul className="divide-y divide-black/8">
-                        {recent.map((e) => (
-                          <li
-                            key={e.id}
-                            className="grid grid-cols-[auto_auto_1fr_auto] items-center gap-4 px-6 py-2.5"
-                          >
-                            <span className="font-mono text-[11px] tabular-nums text-black/50">
-                              {formatDistanceToNow(new Date(e.ts), {
-                                addSuffix: false,
-                              })}
-                            </span>
-                            <span>
-                              {e.source ? (
-                                <span className="inline-flex items-center gap-1.5 font-mono text-[11.5px] text-black">
-                                  <Dot color={colorFor(e.source)} />
-                                  {e.source}
-                                </span>
-                              ) : e.referrerHost ? (
-                                <span className="inline-flex items-center gap-1.5 font-mono text-[11.5px] text-black/65">
-                                  <Dot color="#bbb" />
-                                  {e.referrerHost}
-                                </span>
-                              ) : (
-                                <span className="text-[11.5px] text-black/35">
-                                  —
-                                </span>
-                              )}
-                            </span>
-                            <span className="truncate font-mono text-[12px] text-black/55">
-                              {pathOf(e.url)}
-                            </span>
-                            <span className="text-[12px] text-black/50">
-                              {flagFor(e.country)}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </Section>
-                  );
-                default:
-                  return null;
-              }
-            })}
+                      <span>+</span>
+                      <span>{w.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+
           </>
         )}
       </div>
@@ -510,20 +655,20 @@ function TopPages({ data }: { data: { url: string; count: number }[] }) {
 // ── components ──────────────────────────────────────────────────────────────
 
 function Stats({
-  ai,
   crawlers,
+  ai,
   total,
   lastEventTs,
 }: {
-  ai: number;
   crawlers: number;
+  ai: number;
   total: number;
   lastEventTs: string | null;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-black/8 bg-black/8 sm:grid-cols-4">
-      <Stat label="AI referrals" value={ai.toLocaleString()} sub="30d" />
+    <div className="grid h-full grid-cols-2 gap-px overflow-hidden rounded-lg border border-black/8 bg-black/8 sm:grid-cols-4">
       <Stat label="Crawler hits" value={crawlers.toLocaleString()} sub="30d" />
+      <Stat label="AI referrals" value={ai.toLocaleString()} sub="30d" />
       <Stat label="Total events" value={total.toLocaleString()} sub="all-time" />
       <Stat
         label="Last event"
@@ -535,6 +680,90 @@ function Stats({
         sub="all-time"
       />
     </div>
+  );
+}
+
+function EmptyHint({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex h-full min-h-[64px] items-center justify-center px-6 py-8 text-[13px] text-black/45">
+      {children}
+    </div>
+  );
+}
+
+function RefreshIcon({ spinning }: { spinning: boolean }) {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 11 11"
+      fill="none"
+      aria-hidden
+      className={spinning ? "animate-spin" : ""}
+    >
+      <path
+        d="M9.2 5.5a3.7 3.7 0 1 1-1.1-2.6 M9.2 1.5 v2.5 h-2.5"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+const RECENT_KIND_LABEL: Record<"human" | "crawler", string> = {
+  human: "human",
+  crawler: "bot",
+};
+
+function RecentEventsList({ data }: { data: RecentEventRow[] }) {
+  return (
+    <ul className="divide-y divide-black/8">
+      {data.map((e) => (
+        <li
+          key={e.id}
+          className="grid grid-cols-[auto_auto_auto_1fr_auto] items-center gap-3 px-6 py-2.5"
+        >
+          <span className="font-mono text-[11px] tabular-nums text-black/50">
+            {formatDistanceToNow(new Date(e.ts), { addSuffix: false })}
+          </span>
+          <span
+            className={`inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wide ${
+              e.kind === "crawler"
+                ? "bg-amber-50 text-amber-900"
+                : "bg-black/5 text-black/65"
+            }`}
+          >
+            {RECENT_KIND_LABEL[e.kind]}
+          </span>
+          <span>
+            {e.source ? (
+              <span className="inline-flex items-center gap-1.5 font-mono text-[11.5px] text-black">
+                <Dot color={colorFor(e.source)} />
+                {e.source}
+                {e.kind === "crawler" && e.verified && (
+                  <span className="font-mono text-[10px] uppercase tracking-wide text-emerald-600">
+                    verified
+                  </span>
+                )}
+              </span>
+            ) : e.referrerHost ? (
+              <span className="inline-flex items-center gap-1.5 font-mono text-[11.5px] text-black/65">
+                <Dot color="#bbb" />
+                {e.referrerHost}
+              </span>
+            ) : (
+              <span className="text-[11.5px] text-black/35">—</span>
+            )}
+          </span>
+          <span className="truncate font-mono text-[12px] text-black/55">
+            {pathOf(e.url)}
+          </span>
+          <span className="text-[12px] text-black/50">{flagFor(e.country)}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -576,8 +805,8 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-lg border border-black/8 bg-white">
-      <div className="flex items-baseline justify-between gap-4 border-b border-black/8 px-6 py-3.5">
+    <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-black/8 bg-white">
+      <div className="flex shrink-0 items-baseline justify-between gap-4 border-b border-black/8 px-6 py-3.5">
         <h2 className="text-[13px] font-medium text-black">{title}</h2>
         {right && (
           <span className="font-mono text-[11px] tabular-nums text-black/40">
@@ -585,7 +814,7 @@ function Section({
           </span>
         )}
       </div>
-      {children}
+      <div className="min-h-0 flex-1 overflow-auto">{children}</div>
     </section>
   );
 }

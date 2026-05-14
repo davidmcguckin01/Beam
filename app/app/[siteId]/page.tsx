@@ -53,6 +53,27 @@ export default async function SiteDashboardPage({
     )
     .orderBy(desc(event.ts));
 
+  // Recent activity feed — humans + crawlers together, newest first, capped
+  // at 100. Crawler hits are usually the more reliable signal so we show them
+  // alongside human referrals rather than hiding them.
+  const recentAllEvents = await db
+    .select({
+      id: event.id,
+      ts: event.ts,
+      url: event.url,
+      referrer: event.referrer,
+      referrerHost: event.referrerHost,
+      source: event.source,
+      country: event.country,
+      kind: event.kind,
+      botCategory: event.botCategory,
+      verified: event.verified,
+    })
+    .from(event)
+    .where(and(eq(event.siteId, s.id), gte(event.ts, thirtyDaysAgo)))
+    .orderBy(desc(event.ts))
+    .limit(100);
+
   const topReferrers = await db
     .select({
       host: event.referrerHost,
@@ -189,6 +210,17 @@ export default async function SiteDashboardPage({
         referrerHost: e.referrerHost,
         source: e.source,
         country: e.country,
+      }))}
+      recentAll={recentAllEvents.map((e) => ({
+        id: e.id,
+        ts: e.ts.toISOString(),
+        url: e.url,
+        referrerHost: e.referrerHost,
+        source: e.source,
+        country: e.country,
+        kind: e.kind as "human" | "crawler",
+        botCategory: (e.botCategory as string) || null,
+        verified: e.verified ?? false,
       }))}
       topReferrers={topReferrers.map((r) => ({
         host: r.host as string,

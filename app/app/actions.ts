@@ -136,10 +136,10 @@ export async function sendTestPingAction(formData: FormData) {
   redirect(`/app/${s.id}`);
 }
 
-// Persists the dashboard widget layout for a site. Accepts the new ordered
-// list of widget keys as a JSON-encoded form field so the customise UI can
-// submit it via a hidden input. Validates via resolveLayout so unknown keys
-// are dropped server-side too.
+// Persists the dashboard widget layout for a site. The customise UI submits
+// the new layout as a JSON-encoded form field (either the legacy string[]
+// shape or the new LayoutItem[] shape). Validation runs server-side via
+// resolveLayout so unknown keys / malformed items are dropped.
 export async function saveDashboardLayoutAction(formData: FormData) {
   const session = await ensureBeamSession();
   if (!session) redirect("/sign-in");
@@ -164,7 +164,7 @@ export async function saveDashboardLayoutAction(formData: FormData) {
   } catch {
     parsed = [];
   }
-  const layout = Array.isArray(parsed) ? resolveLayout(parsed as string[]) : [];
+  const layout = resolveLayout(parsed);
 
   await db
     .update(site)
