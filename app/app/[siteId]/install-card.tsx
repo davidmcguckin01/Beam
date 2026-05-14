@@ -55,7 +55,7 @@ export function InstallCard({
   };
 
   return (
-    <section className="overflow-hidden rounded-lg border border-black/8 bg-white">
+    <section className="mx-auto w-full max-w-2xl overflow-hidden rounded-lg border border-black/8 bg-white">
       {/* Header — the detected platform tailors the prompt below; the user can
           re-run detection or clear it from here. */}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-black/8 px-5 py-3.5">
