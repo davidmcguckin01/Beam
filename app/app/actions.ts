@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 import { ensureBeamSession, isMemberOfOrg } from "@/lib/beam-auth";
 import { detectStack } from "@/lib/stack-detect";
 import { TEST_PING_SOURCE } from "@/lib/test-ping";
+import { resolveLayout } from "@/lib/dashboard-widgets";
 
 function generateApiKey(): string {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -130,6 +131,45 @@ export async function sendTestPingAction(formData: FormData) {
     country: null,
     kind: "human",
   });
+
+  revalidatePath(`/app/${s.id}`);
+  redirect(`/app/${s.id}`);
+}
+
+// Persists the dashboard widget layout for a site. Accepts the new ordered
+// list of widget keys as a JSON-encoded form field so the customise UI can
+// submit it via a hidden input. Validates via resolveLayout so unknown keys
+// are dropped server-side too.
+export async function saveDashboardLayoutAction(formData: FormData) {
+  const session = await ensureBeamSession();
+  if (!session) redirect("/sign-in");
+
+  const siteId = String(formData.get("siteId") || "");
+  if (!siteId) redirect("/app");
+
+  const rows = await db
+    .select()
+    .from(site)
+    .where(eq(site.id, siteId))
+    .limit(1);
+  const s = rows[0];
+  if (!s) redirect("/app");
+
+  const member = await isMemberOfOrg(session.user.id, s.orgId);
+  if (!member) redirect("/app");
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(String(formData.get("layout") || "[]"));
+  } catch {
+    parsed = [];
+  }
+  const layout = Array.isArray(parsed) ? resolveLayout(parsed as string[]) : [];
+
+  await db
+    .update(site)
+    .set({ dashboardLayout: layout })
+    .where(eq(site.id, s.id));
 
   revalidatePath(`/app/${s.id}`);
   redirect(`/app/${s.id}`);

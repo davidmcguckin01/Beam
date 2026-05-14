@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { setActiveOrgAction, createOrgAction } from "@/app/app/org-actions";
@@ -95,52 +98,60 @@ function Tab({
 
 function OrgSwitcher({ orgs, activeOrg }: { orgs: Org[]; activeOrg: Org }) {
   return (
-    <details className="group relative">
-      <summary className="flex cursor-pointer list-none items-center gap-1 rounded-md px-1.5 py-0.5 text-black hover:bg-black/5 [&::-webkit-details-marker]:hidden">
-        <span className="truncate font-medium">{activeOrg.name}</span>
-        <Chevron />
-      </summary>
-      <div className="absolute left-0 top-full z-20 mt-1 w-64 rounded-lg border border-black/10 bg-white p-1 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.12)]">
-        <div className="px-2 py-1.5 text-[10px] font-medium uppercase tracking-wide text-black/40">
-          Switch workspace
-        </div>
-        {orgs.map((o) => (
-          <form key={o.id} action={setActiveOrgAction} className="block">
-            <input type="hidden" name="orgId" value={o.id} />
-            <button
-              type="submit"
-              className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-black/5 ${
-                o.id === activeOrg.id ? "text-black" : "text-black/70"
-              }`}
-            >
-              <span className="truncate">{o.name}</span>
-              {o.id === activeOrg.id && <Check />}
-            </button>
+    <Dropdown
+      trigger={(open) => (
+        <>
+          <span className="truncate font-medium">{activeOrg.name}</span>
+          <Chevron open={open} />
+        </>
+      )}
+      triggerClassName="flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-black hover:bg-black/5"
+      menuClassName="w-64"
+    >
+      {(close) => (
+        <>
+          <div className="px-2 py-1.5 text-[10px] font-medium uppercase tracking-wide text-black/40">
+            Switch workspace
+          </div>
+          {orgs.map((o) => (
+            <form key={o.id} action={setActiveOrgAction} className="block">
+              <input type="hidden" name="orgId" value={o.id} />
+              <button
+                type="submit"
+                onClick={() => close()}
+                className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-black/5 ${
+                  o.id === activeOrg.id ? "text-black" : "text-black/70"
+                }`}
+              >
+                <span className="truncate">{o.name}</span>
+                {o.id === activeOrg.id && <Check />}
+              </button>
+            </form>
+          ))}
+          <div className="my-1 h-px bg-black/8" />
+          <form action={createOrgAction} className="p-1">
+            <div className="px-1 pb-1 text-[10px] font-medium uppercase tracking-wide text-black/40">
+              Create workspace
+            </div>
+            <div className="flex gap-1">
+              <input
+                type="text"
+                name="name"
+                required
+                placeholder="Workspace name"
+                className="block w-full rounded-md border border-black/10 bg-white px-2 py-1.5 text-[13px] text-black placeholder:text-black/30 focus:border-black/40 focus:outline-none"
+              />
+              <button
+                type="submit"
+                className="inline-flex h-7 items-center rounded-md bg-black px-2.5 text-[11px] font-medium text-white hover:bg-black/85"
+              >
+                Add
+              </button>
+            </div>
           </form>
-        ))}
-        <div className="my-1 h-px bg-black/8" />
-        <form action={createOrgAction} className="p-1">
-          <div className="px-1 pb-1 text-[10px] font-medium uppercase tracking-wide text-black/40">
-            Create workspace
-          </div>
-          <div className="flex gap-1">
-            <input
-              type="text"
-              name="name"
-              required
-              placeholder="Workspace name"
-              className="block w-full rounded-md border border-black/10 bg-white px-2 py-1.5 text-[13px] text-black placeholder:text-black/30 focus:border-black/40 focus:outline-none"
-            />
-            <button
-              type="submit"
-              className="inline-flex h-7 items-center rounded-md bg-black px-2.5 text-[11px] font-medium text-white hover:bg-black/85"
-            >
-              Add
-            </button>
-          </div>
-        </form>
-      </div>
-    </details>
+        </>
+      )}
+    </Dropdown>
   );
 }
 
@@ -154,68 +165,132 @@ function SiteSwitcher({
   const label = activeSite ? activeSite.domain : "All sites";
 
   return (
-    <details className="group relative">
-      <summary className="flex cursor-pointer list-none items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-black/5 [&::-webkit-details-marker]:hidden">
-        <span
-          className={`truncate ${
-            activeSite
-              ? "font-mono text-[12.5px] text-black"
-              : "text-black/70"
+    <Dropdown
+      trigger={(open) => (
+        <>
+          <span
+            className={`truncate ${
+              activeSite
+                ? "font-mono text-[12.5px] text-black"
+                : "text-black/70"
+            }`}
+          >
+            {label}
+          </span>
+          <Chevron open={open} />
+        </>
+      )}
+      triggerClassName="flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-black/5"
+      menuClassName="w-72"
+    >
+      {(close) => (
+        <>
+          <div className="px-2 py-1.5 text-[10px] font-medium uppercase tracking-wide text-black/40">
+            Switch site
+          </div>
+          {sites.length === 0 ? (
+            <div className="px-2 py-2 text-[12.5px] text-black/45">
+              No sites yet — add one below.
+            </div>
+          ) : (
+            <ul className="max-h-64 overflow-y-auto">
+              {sites.map((s) => (
+                <li key={s.id}>
+                  <Link
+                    href={`/app/${s.id}`}
+                    onClick={() => close()}
+                    className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left font-mono text-[12.5px] hover:bg-black/5 ${
+                      activeSite?.id === s.id ? "text-black" : "text-black/70"
+                    }`}
+                  >
+                    <span className="truncate">{s.domain}</span>
+                    {activeSite?.id === s.id && <Check />}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="my-1 h-px bg-black/8" />
+          <form action={createSiteAction} className="p-1">
+            <div className="px-1 pb-1 text-[10px] font-medium uppercase tracking-wide text-black/40">
+              Add a site
+            </div>
+            <div className="flex gap-1">
+              <input
+                type="text"
+                name="domain"
+                required
+                placeholder="example.com"
+                autoComplete="off"
+                className="block w-full rounded-md border border-black/10 bg-white px-2 py-1.5 font-mono text-[12.5px] text-black placeholder:text-black/30 focus:border-black/40 focus:outline-none"
+              />
+              <button
+                type="submit"
+                className="inline-flex h-7 items-center rounded-md bg-black px-2.5 text-[11px] font-medium text-white hover:bg-black/85"
+              >
+                Add
+              </button>
+            </div>
+          </form>
+        </>
+      )}
+    </Dropdown>
+  );
+}
+
+function Dropdown({
+  trigger,
+  triggerClassName,
+  menuClassName,
+  children,
+}: {
+  trigger: (open: boolean) => React.ReactNode;
+  triggerClassName?: string;
+  menuClassName?: string;
+  children: (close: () => void) => React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (e: PointerEvent) => {
+      if (!ref.current) return;
+      if (!ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className={triggerClassName}
+      >
+        {trigger(open)}
+      </button>
+      {open && (
+        <div
+          className={`absolute left-0 top-full z-20 mt-1 rounded-lg border border-black/10 bg-white p-1 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.12)] ${
+            menuClassName ?? ""
           }`}
+          role="menu"
         >
-          {label}
-        </span>
-        <Chevron />
-      </summary>
-      <div className="absolute left-0 top-full z-20 mt-1 w-72 rounded-lg border border-black/10 bg-white p-1 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.12)]">
-        <div className="px-2 py-1.5 text-[10px] font-medium uppercase tracking-wide text-black/40">
-          Switch site
+          {children(() => setOpen(false))}
         </div>
-        {sites.length === 0 ? (
-          <div className="px-2 py-2 text-[12.5px] text-black/45">
-            No sites yet — add one below.
-          </div>
-        ) : (
-          <ul className="max-h-64 overflow-y-auto">
-            {sites.map((s) => (
-              <li key={s.id}>
-                <Link
-                  href={`/app/${s.id}`}
-                  className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left font-mono text-[12.5px] hover:bg-black/5 ${
-                    activeSite?.id === s.id ? "text-black" : "text-black/70"
-                  }`}
-                >
-                  <span className="truncate">{s.domain}</span>
-                  {activeSite?.id === s.id && <Check />}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="my-1 h-px bg-black/8" />
-        <form action={createSiteAction} className="p-1">
-          <div className="px-1 pb-1 text-[10px] font-medium uppercase tracking-wide text-black/40">
-            Add a site
-          </div>
-          <div className="flex gap-1">
-            <input
-              type="text"
-              name="domain"
-              required
-              placeholder="example.com"
-              autoComplete="off"
-              className="block w-full rounded-md border border-black/10 bg-white px-2 py-1.5 font-mono text-[12.5px] text-black placeholder:text-black/30 focus:border-black/40 focus:outline-none"
-            />
-            <button
-              type="submit"
-              className="inline-flex h-7 items-center rounded-md bg-black px-2.5 text-[11px] font-medium text-white hover:bg-black/85"
-            >
-              Add
-            </button>
-          </div>
-        </form>
-      </div>
-    </details>
+      )}
+    </div>
   );
 }
 
@@ -231,14 +306,14 @@ function Slash() {
   return <span className="text-black/20">/</span>;
 }
 
-function Chevron() {
+function Chevron({ open = false }: { open?: boolean }) {
   return (
     <svg
       width="10"
       height="10"
       viewBox="0 0 10 10"
       fill="none"
-      className="text-black/40"
+      className={`text-black/40 transition-transform ${open ? "rotate-180" : ""}`}
       aria-hidden
     >
       <path

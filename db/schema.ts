@@ -7,6 +7,7 @@ import {
   decimal,
   boolean,
   uuid,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -883,6 +884,10 @@ export const site = pgTable("site", {
   // 'vercel' | 'unknown' | null (not yet checked).
   stack: text("stack"),
   stackDetectedAt: timestamp("stack_detected_at"),
+  // Ordered list of dashboard widget keys to render. Hidden widgets are
+  // simply absent. Null = use the default layout. Per-site (everyone in the
+  // org sees the same layout). See lib/dashboard-widgets.ts.
+  dashboardLayout: jsonb("dashboard_layout").$type<string[] | null>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

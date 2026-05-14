@@ -176,6 +176,13 @@
       "when": 1772808511190,
       "tag": "0024_eminent_firebird",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1778777777777,
+      "tag": "0025_dashboard_layout",
+      "breakpoints": true
     }
   ]
 }

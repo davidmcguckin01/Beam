@@ -27,24 +27,7 @@ const isPublicRoute = createRouteMatcher([
   "/robots.txt", // Robots.txt
 ]);
 
-// Run schema validation once per server instance
-let schemaValidationRun = false;
-
 export default clerkMiddleware(async (auth, request) => {
-  // Run schema validation once on first request
-  if (!schemaValidationRun) {
-    schemaValidationRun = true;
-    import("@/lib/schema-validation")
-      .then(({ validateFeedbackSchema }) => {
-        validateFeedbackSchema().catch((error) => {
-          console.error("Schema validation error in middleware:", error);
-        });
-      })
-      .catch((error) => {
-        console.error("Error importing schema validation:", error);
-      });
-  }
-
   if (!isPublicRoute(request)) {
     await auth.protect();
   }
