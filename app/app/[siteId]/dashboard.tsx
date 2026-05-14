@@ -20,6 +20,7 @@ import {
   type WidgetKey,
 } from "@/lib/dashboard-widgets";
 import { saveDashboardLayoutAction } from "@/app/app/actions";
+import { inviteAction } from "@/app/app/settings/actions";
 import {
   LineChart,
   Line,
@@ -280,6 +281,10 @@ export function Dashboard({
   }, [activeDashboardId, layout]);
 
   const [selectedEvent, setSelectedEvent] = useState<RecentEventRow | null>(null);
+
+  // Set once the user copies the install prompt — escalates the first-run
+  // "watching for crawlers" surface into its loud, animated state.
+  const [promptArmed, setPromptArmed] = useState(false);
 
   const [live, setLive] = useState(false);
   const liveRef = useRef<NodeJS.Timeout | null>(null);
@@ -633,13 +638,10 @@ export function Dashboard({
               snippets={snippets}
               detected={detected}
               siteId={site.id}
+              onPromptCopied={() => setPromptArmed(true)}
             />
-            <Section title="Waiting for first event">
-              <div className="px-6 py-8 text-[13px] text-black/55">
-                Paste the snippet above. Events arrive within seconds of a visit.
-                This page refreshes when you reload.
-              </div>
-            </Section>
+            <WatchingForEvents armed={promptArmed} />
+            <InviteTeammates siteId={site.id} />
           </>
         ) : (
           <>
@@ -1164,6 +1166,112 @@ function Section({
       </div>
       <div className="min-h-0 flex-1 overflow-auto">{children}</div>
     </section>
+  );
+}
+
+// Bots we name-drop in the first-run "watching" animation — the crawlers
+// users actually recognise and are waiting to see show up.
+const WATCHED_BOTS = [
+  "ClaudeBot",
+  "GPTBot",
+  "PerplexityBot",
+  "Google-Extended",
+  "OAI-SearchBot",
+  "Bytespider",
+];
+
+// First-run surface shown until the very first event lands. It polls the
+// server on a timer so the dashboard lights up on its own — the moment an
+// event arrives, hasData flips and this whole component unmounts. Once the
+// user has copied the install prompt it escalates into a loud, animated
+// "watching for <bot>…" state — that's the payoff moment, so sell it.
+function WatchingForEvents({ armed }: { armed: boolean }) {
+  const router = useRouter();
+
+  useEffect(() => {
+    const id = setInterval(() => router.refresh(), 8000);
+    return () => clearInterval(id);
+  }, [router]);
+
+  const [botIdx, setBotIdx] = useState(0);
+  useEffect(() => {
+    if (!armed) return;
+    const id = setInterval(
+      () => setBotIdx((i) => (i + 1) % WATCHED_BOTS.length),
+      1400
+    );
+    return () => clearInterval(id);
+  }, [armed]);
+
+  return (
+    <Section
+      title={armed ? "Watching for crawlers" : "Waiting for first event"}
+      right={armed ? "live" : undefined}
+    >
+      {armed ? (
+        <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+          </span>
+          <div className="text-[14px] text-black">
+            Watching for{" "}
+            <span className="font-mono text-black">{WATCHED_BOTS[botIdx]}</span>
+            <span className="text-black/40">…</span>
+          </div>
+          <p className="max-w-sm text-[12.5px] text-black/50">
+            Your AI editor is wiring up Beam. This page lights up the second
+            your first crawler hit lands — no refresh needed.
+          </p>
+        </div>
+      ) : (
+        <div className="px-6 py-8 text-[13px] text-black/55">
+          Copy the install prompt above and paste it into your AI editor.
+          Events arrive within seconds — this page updates itself.
+        </div>
+      )}
+    </Section>
+  );
+}
+
+// First-run nudge to bring teammates into the workspace. Reuses the Settings
+// inviteAction; redirectTo keeps a successful invite on this dashboard
+// instead of bouncing out to Settings mid-onboarding.
+function InviteTeammates({ siteId }: { siteId: string }) {
+  return (
+    <Section title="Invite your team" right="optional">
+      <form
+        action={inviteAction}
+        className="flex flex-wrap items-center gap-2 px-6 py-5"
+      >
+        <input type="hidden" name="redirectTo" value={`/app/${siteId}`} />
+        <input type="hidden" name="role" value="member" />
+        <input
+          type="email"
+          name="email"
+          required
+          placeholder="teammate@company.com"
+          className="block w-full max-w-xs rounded-md border border-black/10 bg-white px-3 py-2 text-[13px] text-black placeholder:text-black/30 focus:border-black/40 focus:outline-none"
+        />
+        <button
+          type="submit"
+          className="inline-flex h-9 items-center rounded-md bg-black px-4 text-[13px] font-medium text-white hover:bg-black/85"
+        >
+          Send invite
+        </button>
+        <p className="basis-full text-[11px] text-black/45">
+          They get their own access to this workspace&apos;s dashboards.
+          Manage and revoke invites any time in{" "}
+          <Link
+            href="/app/settings"
+            className="text-black/60 underline underline-offset-2 hover:text-black"
+          >
+            Settings
+          </Link>
+          .
+        </p>
+      </form>
+    </Section>
   );
 }
 

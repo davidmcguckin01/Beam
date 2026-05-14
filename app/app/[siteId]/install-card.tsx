@@ -19,16 +19,37 @@ export function InstallCard({
   snippets,
   detected,
   siteId,
+  onPromptCopied,
 }: {
   snippets: SnippetTab[];
   detected: DetectedInfo;
   siteId: string;
+  onPromptCopied?: () => void;
 }) {
-  const [active, setActive] = useState<SnippetTab["key"]>(snippets[0]?.key);
-  const tab = snippets.find((s) => s.key === active) ?? snippets[0];
+  // The AI-agent install prompt is the primary path — most users paste it
+  // straight into Cursor / Claude Code / Windsurf. The raw per-stack code
+  // tabs are the power-user fallback, tucked behind "Show raw code".
+  const promptTab = snippets.find((s) => s.key === "ai-prompt");
+  const rawTabs = snippets.filter((s) => s.key !== "ai-prompt");
+
+  const [showRaw, setShowRaw] = useState(false);
+  const [active, setActive] = useState<SnippetTab["key"]>(rawTabs[0]?.key);
+  const tab = rawTabs.find((s) => s.key === active) ?? rawTabs[0];
+
+  const [copied, setCopied] = useState(false);
+  const copyPrompt = async () => {
+    if (!promptTab) return;
+    try {
+      await navigator.clipboard.writeText(promptTab.body);
+      setCopied(true);
+      onPromptCopied?.();
+      setTimeout(() => setCopied(false), 2500);
+    } catch {}
+  };
 
   return (
     <section className="overflow-hidden rounded-lg border border-black/8 bg-white">
+      {/* Header — the detected chip tailors the prompt; it is not a tab picker. */}
       <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-black/8 px-6 py-3.5">
         <div className="flex items-baseline gap-3">
           <h2 className="text-[13px] font-medium text-black">Install</h2>
@@ -66,40 +87,81 @@ export function InstallCard({
         </span>
       </div>
 
-      <div className="flex gap-0.5 overflow-x-auto border-b border-black/8 px-3 py-2">
-        {snippets.map((s) => (
+      {/* Primary surface — copy the prompt, hand it to your AI editor. */}
+      <div className="px-6 py-6">
+        <button
+          type="button"
+          onClick={copyPrompt}
+          disabled={!promptTab}
+          className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-[13px] font-medium transition-colors disabled:opacity-50 ${
+            copied
+              ? "bg-emerald-600 text-white"
+              : "bg-black text-white hover:bg-black/85"
+          }`}
+        >
+          {copied ? <CheckIcon /> : <ClipboardIcon />}
+          {copied
+            ? "Copied — paste it into your AI editor"
+            : "Copy install prompt"}
+        </button>
+        <p className="mt-2 text-center text-[12px] text-black/50">
+          Paste into Cursor, Claude Code, or Windsurf.
+          {detected ? ` Tailored for ${detected.label}.` : ""}
+        </p>
+        <p className="mt-4 text-center text-[12.5px] text-black/70">
+          Paste the prompt, your AI handles the rest.
+        </p>
+
+        <div className="mt-5 flex items-center justify-center gap-3">
+          <TestPingButton siteId={siteId} />
+          <span className="select-none text-black/15">·</span>
           <button
-            key={s.key}
             type="button"
-            onClick={() => setActive(s.key)}
-            className={`shrink-0 rounded px-2.5 py-1 text-[12px] transition-colors ${
-              s.key === active
-                ? "bg-black/8 text-black"
-                : "text-black/55 hover:bg-black/3 hover:text-black"
-            }`}
+            onClick={() => setShowRaw((v) => !v)}
+            className="font-mono text-[11px] text-black/55 hover:text-black"
           >
-            {s.label}
+            {showRaw ? "Hide raw code" : "Show raw code →"}
           </button>
-        ))}
+        </div>
       </div>
 
-      <div className="px-6 py-5">
-        <p className="text-[12.5px] text-black/60">{tab.blurb}</p>
+      {/* Raw-code fallback — the original per-stack tabs + 01/02/03 steps.
+          Only relevant for the DIY path, so it lives in here, collapsed. */}
+      {showRaw && tab && (
+        <div className="border-t border-black/8">
+          <div className="flex gap-0.5 overflow-x-auto border-b border-black/8 px-3 py-2">
+            {rawTabs.map((s) => (
+              <button
+                key={s.key}
+                type="button"
+                onClick={() => setActive(s.key)}
+                className={`shrink-0 rounded px-2.5 py-1 text-[12px] transition-colors ${
+                  s.key === active
+                    ? "bg-black/8 text-black"
+                    : "text-black/55 hover:bg-black/3 hover:text-black"
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
 
-        <ol className="mt-5 space-y-5">
-          <Step number="01" title="Copy">
-            <CodeBlock body={tab.body} lang={tab.lang} />
-          </Step>
-          <Step number="02" title={tab.pasteInstruction} />
-          <Step
-            number="03"
-            title={tab.doneInstruction ?? DEFAULT_DONE}
-            muted
-          >
-            <TestPingButton siteId={siteId} />
-          </Step>
-        </ol>
-      </div>
+          <div className="px-6 py-5">
+            <p className="text-[12.5px] text-black/60">{tab.blurb}</p>
+            <ol className="mt-5 space-y-5">
+              <Step number="01" title="Copy">
+                <CodeBlock body={tab.body} lang={tab.lang} />
+              </Step>
+              <Step number="02" title={tab.pasteInstruction} />
+              <Step
+                number="03"
+                title={tab.doneInstruction ?? DEFAULT_DONE}
+                muted
+              />
+            </ol>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -118,7 +180,7 @@ function TestPingButton({ siteId }: { siteId: string }) {
         disabled={pending}
         className="font-mono text-[11px] text-black/55 hover:text-black disabled:opacity-50"
       >
-        {pending ? "sending…" : "or send a test ping →"}
+        {pending ? "sending…" : "Send a test ping →"}
       </button>
     </form>
   );
@@ -141,11 +203,7 @@ function Step({
         {number}
       </span>
       <div className="min-w-0 flex-1">
-        <p
-          className={`text-[13px] ${
-            muted ? "text-black/55" : "text-black"
-          }`}
-        >
+        <p className={`text-[13px] ${muted ? "text-black/55" : "text-black"}`}>
           {title}
         </p>
         {children && <div className="mt-2.5">{children}</div>}
@@ -177,9 +235,46 @@ function CodeBlock({ body, lang }: { body: string; lang: string }) {
           {copied ? "copied" : "copy"}
         </button>
       </div>
-      <pre className="max-h-[28rem] overflow-auto px-4 py-3 font-mono text-[12.5px] leading-relaxed text-black/85">
+      <pre className="max-h-112 overflow-auto px-4 py-3 font-mono text-[12.5px] leading-relaxed text-black/85">
         <code>{body}</code>
       </pre>
     </div>
+  );
+}
+
+function ClipboardIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden>
+      <rect
+        x="3"
+        y="3"
+        width="8"
+        height="9.5"
+        rx="1.5"
+        stroke="currentColor"
+        strokeWidth="1.3"
+      />
+      <path
+        d="M5 3 V2 h4 v1"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden>
+      <path
+        d="M3 7.5 L6 10.5 L11 4"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

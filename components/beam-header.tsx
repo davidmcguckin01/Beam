@@ -4,7 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { setActiveOrgAction, createOrgAction } from "@/app/app/org-actions";
-import { createSiteAction, deleteSiteAction } from "@/app/app/actions";
+import {
+  createSiteAction,
+  deleteSiteAction,
+  updateSiteDomainAction,
+} from "@/app/app/actions";
 
 type Org = { id: string; name: string; role: string };
 type SiteSummary = { id: string; domain: string };
@@ -163,13 +167,15 @@ function SiteSwitcher({
   activeSite: SiteSummary | null;
 }) {
   const label = activeSite ? activeSite.domain : "All sites";
-  // Right-click context menu for deleting a site. Holds the target site plus
-  // the cursor position the menu should render at.
+  // Right-click context menu for editing/deleting a site. Holds the target
+  // site, the cursor position to render at, and whether it's currently
+  // showing the inline domain-edit form.
   const [menu, setMenu] = useState<{
     id: string;
     domain: string;
     x: number;
     y: number;
+    editing: boolean;
   } | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -231,8 +237,9 @@ function SiteSwitcher({
                       setMenu({
                         id: s.id,
                         domain: s.domain,
-                        x: Math.min(e.clientX, window.innerWidth - 190),
-                        y: Math.min(e.clientY, window.innerHeight - 110),
+                        editing: false,
+                        x: Math.min(e.clientX, window.innerWidth - 240),
+                        y: Math.min(e.clientY, window.innerHeight - 170),
                       });
                     }}
                     className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left font-mono text-[12.5px] hover:bg-black/5 ${
@@ -257,31 +264,75 @@ function SiteSwitcher({
             // to the header's height and never catch outside clicks.
             <div
               ref={menuRef}
-              className="fixed z-40 min-w-[176px] rounded-lg border border-black/10 bg-white p-1 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.12)]"
+              className="fixed z-40 min-w-[220px] rounded-lg border border-black/10 bg-white p-1 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.12)]"
               style={{ top: menu.y, left: menu.x }}
             >
-              <div className="max-w-[200px] truncate px-2 pt-1 pb-0.5 font-mono text-[11px] text-black/45">
-                {menu.domain}
-              </div>
-              <form
-                action={deleteSiteAction}
-                onSubmit={() => {
-                  setMenu(null);
-                  close();
-                }}
-              >
-                <input type="hidden" name="siteId" value={menu.id} />
-                <button
-                  type="submit"
-                  className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-[12.5px] text-red-600 hover:bg-red-50"
+              {menu.editing ? (
+                <form
+                  action={updateSiteDomainAction}
+                  onSubmit={() => {
+                    setMenu(null);
+                    close();
+                  }}
+                  className="p-1"
                 >
-                  <Trash />
-                  Delete site
-                </button>
-              </form>
-              <div className="px-2 pt-0.5 pb-1 text-[10.5px] text-black/35">
-                Removes all its events &amp; dashboards.
-              </div>
+                  <div className="px-1 pb-1 text-[10px] font-medium uppercase tracking-wide text-black/40">
+                    Edit domain
+                  </div>
+                  <input type="hidden" name="siteId" value={menu.id} />
+                  <div className="flex gap-1">
+                    <input
+                      type="text"
+                      name="domain"
+                      required
+                      autoFocus
+                      defaultValue={menu.domain}
+                      placeholder="example.com"
+                      autoComplete="off"
+                      className="block w-full rounded-md border border-black/10 bg-white px-2 py-1.5 font-mono text-[12.5px] text-black placeholder:text-black/30 focus:border-black/40 focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      className="inline-flex h-7 items-center rounded-md bg-black px-2.5 text-[11px] font-medium text-white hover:bg-black/85"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  <div className="max-w-[220px] truncate px-2 pt-1 pb-0.5 font-mono text-[11px] text-black/45">
+                    {menu.domain}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setMenu({ ...menu, editing: true })}
+                    className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-[12.5px] text-black/80 hover:bg-black/5"
+                  >
+                    <Pencil />
+                    Edit domain
+                  </button>
+                  <form
+                    action={deleteSiteAction}
+                    onSubmit={() => {
+                      setMenu(null);
+                      close();
+                    }}
+                  >
+                    <input type="hidden" name="siteId" value={menu.id} />
+                    <button
+                      type="submit"
+                      className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-[12.5px] text-red-600 hover:bg-red-50"
+                    >
+                      <Trash />
+                      Delete site
+                    </button>
+                  </form>
+                  <div className="px-2 pt-0.5 pb-1 text-[10.5px] text-black/35">
+                    Removes all its events &amp; dashboards.
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -435,6 +486,27 @@ function Trash() {
     >
       <path
         d="M2.5 3.5 H9.5 M4.75 3.5 V2.5 H7.25 V3.5 M3.25 3.5 L3.75 10 H8.25 L8.75 3.5"
+        stroke="currentColor"
+        strokeWidth="1.1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function Pencil() {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 12 12"
+      fill="none"
+      className="text-black/55"
+      aria-hidden
+    >
+      <path
+        d="M8 1.8 L10.2 4 M8.6 1.2 L10.8 3.4 L4.2 10 H2 V7.8 Z"
         stroke="currentColor"
         strokeWidth="1.1"
         strokeLinecap="round"

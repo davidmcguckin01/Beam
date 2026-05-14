@@ -107,6 +107,42 @@ export async function deleteSiteAction(formData: FormData) {
   redirect("/app");
 }
 
+// Edit a site's domain after creation. Runs the same normalisation as
+// createSiteAction. When the domain actually changes, the detected platform
+// is cleared — it was detected against the old domain and may now be wrong;
+// the install card will offer to re-detect.
+export async function updateSiteDomainAction(formData: FormData) {
+  const session = await ensureBeamSession();
+  if (!session) redirect("/sign-in");
+
+  const siteId = String(formData.get("siteId") || "");
+  if (!siteId) redirect("/app");
+
+  const domain = cleanDomain(String(formData.get("domain") || ""));
+
+  const rows = await db
+    .select()
+    .from(site)
+    .where(eq(site.id, siteId))
+    .limit(1);
+  const s = rows[0];
+  if (!s) redirect("/app");
+
+  const member = await isMemberOfOrg(session.user.id, s.orgId);
+  if (!member) redirect("/app");
+
+  // Empty/unparseable input or an unchanged domain — nothing to do.
+  if (!domain || domain === s.domain) redirect(`/app/${s.id}`);
+
+  await db
+    .update(site)
+    .set({ domain, stack: null, stackDetectedAt: null })
+    .where(eq(site.id, s.id));
+
+  revalidatePath("/app");
+  redirect(`/app/${s.id}`);
+}
+
 // Re-run detection on demand (called when the user clicks "Re-detect" or when
 // the dashboard loads a site with stack=null).
 export async function redetectStackAction(formData: FormData) {

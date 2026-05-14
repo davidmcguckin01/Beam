@@ -23,10 +23,20 @@ export async function inviteAction(formData: FormData) {
   const session = await ensureBeamSession();
   if (!session) redirect("/sign-in");
 
+  // Optional return path. The first-run "Invite your team" card on a site
+  // dashboard passes its own URL so a successful invite doesn't bounce the
+  // user out to Settings mid-onboarding. Restricted to internal /app/ paths.
+  const rawRedirect = String(formData.get("redirectTo") || "");
+  const back =
+    rawRedirect.startsWith("/app/") && !rawRedirect.includes("?")
+      ? rawRedirect
+      : null;
+  const err = (code: string) => back ?? `/app/settings?err=${code}`;
+
   const orgId = session.activeOrgId;
   const member = await getMembership(session.user.id, orgId);
   if (!member || (member.role !== "owner" && member.role !== "admin")) {
-    redirect("/app/settings?err=forbidden");
+    redirect(err("forbidden"));
   }
 
   const email = String(formData.get("email") || "")
@@ -34,10 +44,10 @@ export async function inviteAction(formData: FormData) {
     .toLowerCase();
   const role = String(formData.get("role") || "member");
   if (!email || !email.includes("@")) {
-    redirect("/app/settings?err=invalid_email");
+    redirect(err("invalid_email"));
   }
   if (!["owner", "admin", "member"].includes(role)) {
-    redirect("/app/settings?err=invalid_role");
+    redirect(err("invalid_role"));
   }
 
   await db.insert(beamInvite).values({
@@ -49,7 +59,7 @@ export async function inviteAction(formData: FormData) {
     expiresAt: new Date(Date.now() + FOURTEEN_DAYS_MS),
   });
 
-  redirect("/app/settings?ok=invited");
+  redirect(back ?? "/app/settings?ok=invited");
 }
 
 export async function revokeInviteAction(formData: FormData) {

@@ -43,14 +43,19 @@ function pixelHtml(appUrl: string, apiKey: string) {
 function nextjsBody(appUrl: string, apiKey: string) {
   return `// middleware.ts (or proxy.ts on Next 16+)
 // Beam — server-side AI crawler detection.
+import type { NextRequest, NextFetchEvent } from "next/server";
 
 const AI_BOTS = /${BOTS_REGEX_SOURCE}/i;
 const SITE = "${apiKey}";
 const INGEST = "${appUrl}/api/i";
 
-export default async function middleware(req: Request) {
+export default function middleware(req: NextRequest, event: NextFetchEvent) {
   const ua = req.headers.get("user-agent") || "";
-  if (AI_BOTS.test(ua)) {
+  if (!AI_BOTS.test(ua)) return;
+
+  // event.waitUntil keeps the edge function alive until the beacon resolves.
+  // Without it the runtime can cancel the fetch the moment middleware returns.
+  event.waitUntil(
     fetch(INGEST, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -61,12 +66,19 @@ export default async function middleware(req: Request) {
         ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
         country: req.headers.get("x-vercel-ip-country"),
       }),
-    }).catch(() => {});
-  }
+    })
+      .then((res) => {
+        if (!res.ok) console.error("[beam] ingest failed:", res.status);
+        else console.log("[beam] tracked", new URL(req.url).pathname);
+      })
+      .catch((err) => console.error("[beam] ingest error:", err))
+  );
 }
 
 export const config = {
-  matcher: "/((?!_next|favicon.ico|.*\\\\..*).*)",
+  // Match everything except Next internals — note this still covers
+  // /robots.txt, /sitemap.xml and /llms.txt, where AI crawlers hit first.
+  matcher: "/((?!_next/static|_next/image|favicon.ico).*)",
 };`;
 }
 
@@ -94,7 +106,12 @@ export default {
             country: request.cf?.country,
             asn: request.cf?.asn,
           }),
-        }).catch(() => {})
+        })
+          .then((res) => {
+            if (!res.ok) console.error("[beam] ingest failed:", res.status);
+            else console.log("[beam] tracked", new URL(request.url).pathname);
+          })
+          .catch((err) => console.error("[beam] ingest error:", err))
       );
     }
     return fetch(request);
@@ -123,7 +140,12 @@ function beamMiddleware(req, res, next) {
           (req.headers["x-forwarded-for"] || "").toString().split(",")[0].trim() ||
           req.socket?.remoteAddress,
       }),
-    }).catch(() => {});
+    })
+      .then((res) => {
+        if (!res.ok) console.error("[beam] ingest failed:", res.status);
+        else console.log("[beam] tracked", req.originalUrl || req.url);
+      })
+      .catch((err) => console.error("[beam] ingest error:", err));
   }
   next();
 }
@@ -175,7 +197,7 @@ ${cloudflareBody(appUrl, apiKey)}
 /${BOTS_REGEX_SOURCE}/i
 \`\`\`
 
-When matched, fire-and-forget POST to ${appUrl}/api/i with JSON body:
+When matched, POST to ${appUrl}/api/i with the JSON body below. Important: register the fetch with the platform's background-task primitive (event.waitUntil / ctx.waitUntil) so the edge runtime doesn't cancel it the moment the handler returns — a bare fetch() silently drops. Also console.log on match so a broken install is visible in the deploy logs. And make sure the route matcher still covers /robots.txt, /sitemap.xml and /llms.txt — crawlers hit those first.
 \`\`\`json
 { "s": "${apiKey}", "ua": "...", "url": "...", "ip": "...", "country": "..." }
 \`\`\``;
