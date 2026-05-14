@@ -21,7 +21,6 @@ import {
   type WidgetMeta,
 } from "@/lib/dashboard-widgets";
 import { saveDashboardLayoutAction } from "@/app/app/actions";
-import { TEST_PING_SOURCE } from "@/lib/test-ping";
 import {
   LineChart,
   Line,
@@ -268,10 +267,6 @@ export function Dashboard({
   // test ping is a pure sanity check: it never flips hasData and never tears
   // down the first-run install surface into an empty dashboard.
   const hasData = totalEventsAllTime > 0;
-
-  // A test ping has landed in the recent feed. Keeps the user on the install
-  // surface, but confirms inline that the ingest pipeline works end to end.
-  const testPinged = recentAll.some((e) => e.source === TEST_PING_SOURCE);
 
   const router = useRouter();
   const [refreshing, startRefresh] = useTransition();
@@ -651,10 +646,8 @@ export function Dashboard({
             {/* New site, no real events yet: the install card is the whole
                 page. "Verify my install" fetches the site and scans the HTML
                 for the snippet — real verification, not a synthetic ping. The
-                separate "Send a test ping" link still writes a synthetic
-                event, which flips testPinged and reveals the waiting surface
-                below. The first real event flips hasData and swaps in the
-                full dashboard. */}
+                first real event flips hasData and swaps in the full
+                dashboard. */}
             <InstallCard
               snippets={snippets}
               detected={detected}
@@ -662,7 +655,6 @@ export function Dashboard({
               domain={site.domain}
               confirmed={false}
             />
-            {testPinged && <WatchingForEvents />}
           </>
         ) : (
           <>
@@ -1253,40 +1245,6 @@ function Section({
       </div>
       <div className="min-h-0 flex-1 overflow-auto">{children}</div>
     </section>
-  );
-}
-
-// First-run surface shown once a test ping has landed but before the first
-// real event. The Dashboard polls while hasData is false, so this page lights
-// up on its own — the moment a real event arrives hasData flips and this
-// whole component unmounts, swapping in the full dashboard.
-//
-// Test pings are excluded from hasData server-side, so the ping fired from the
-// install card never unmounts this surface — it just confirms, inline and
-// immediately, that the ingest pipeline works end to end.
-function WatchingForEvents() {
-  return (
-    <Section title="Waiting for your first event" right="live">
-      <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-            <path
-              d="M3 7.5 L6 10.5 L11 4"
-              stroke="#059669"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </span>
-        <div className="text-[14px] text-black">Your ingest pipeline works</div>
-        <p className="max-w-sm text-[12.5px] text-black/50">
-          That test ping reached Beam and is sitting in your recent events. The
-          moment a real crawler or AI referral lands, this page promotes itself
-          to the full dashboard — no refresh needed.
-        </p>
-      </div>
-    </Section>
   );
 }
 
