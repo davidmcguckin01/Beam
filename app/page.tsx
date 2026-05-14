@@ -1,84 +1,22 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 
 export const dynamic = "force-static";
 
+// Single brand accent — a warm orange. Used for the H1 highlight word, the
+// badge dot, the chart, and the annotation-card icons. The primary CTA stays
+// black (Fyxer-style), so the accent reads as "highlight", not "button".
+const ACCENT = "#FF5C35";
+
 export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-white text-black antialiased">
-      <header className="sticky top-0 z-10 border-b border-black/8 bg-white/80 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 h-14">
-          <Link href="/" className="flex items-center gap-2">
-            <Logo />
-            <span className="text-[15px] font-semibold tracking-tight">
-              Ocholens
-            </span>
-          </Link>
-          <nav className="flex items-center gap-1 text-sm">
-            <Link
-              href="/sign-in"
-              className="rounded-md px-3 py-1.5 text-black/60 hover:text-black"
-            >
-              Sign in
-            </Link>
-            <Link
-              href="/sign-up"
-              className="rounded-md bg-black px-3 py-1.5 text-white hover:bg-black/85"
-            >
-              Start tracking
-            </Link>
-          </nav>
-        </div>
-      </header>
-
-      {/* Hero — problem first */}
-      <section className="relative overflow-hidden border-b border-black/8">
-        <GridBackdrop />
-        <div className="relative mx-auto max-w-4xl px-6 pt-20 pb-20 text-center sm:pt-28">
-          <div className="mx-auto mb-8 inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-black/60">
-            The analytics gap
-          </div>
-          <h1 className="text-balance text-5xl font-semibold tracking-[-0.04em] text-black sm:text-6xl">
-            Most of your AI traffic shows up as &ldquo;direct&rdquo; in
-            Analytics.
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-balance text-lg text-black/60">
-            ChatGPT, Claude, and Perplexity send readers to your site daily. Analytics doesn't see them.
-          </p>
-          <div className="mt-10 flex items-center justify-center gap-3">
-            <Link
-              href="/sign-up"
-              className="inline-flex h-10 items-center justify-center rounded-md bg-black px-5 text-sm font-medium text-white hover:bg-black/85"
-            >
-              Start tracking →
-            </Link>
-            <Link
-              href="/sign-in"
-              className="inline-flex h-10 items-center justify-center rounded-md border border-black/10 bg-white px-5 text-sm font-medium text-black hover:bg-black/3"
-            >
-              Sign in
-            </Link>
-          </div>
-
-          {/* Code preview — light */}
-          <div className="mx-auto mt-16 max-w-2xl overflow-hidden rounded-lg border border-black/10 bg-white shadow-[0_24px_60px_-24px_rgba(0,0,0,0.18)]">
-            <div className="flex items-center justify-between border-b border-black/8 px-3 py-1.5">
-              <span className="font-mono text-[10px] uppercase tracking-wide text-black/40">
-                html
-              </span>
-              <span className="font-mono text-[10px] text-black/30">
-                paste in &lt;head&gt;
-              </span>
-            </div>
-            <pre className="overflow-x-auto px-4 py-3 text-left font-mono text-[12px] leading-relaxed text-black/85">
-              {`<script async src="https://beam.dev/p.js" data-site="YOUR_KEY"></script>
-<noscript><img src="https://beam.dev/api/i?s=YOUR_KEY&c=1" width="1" height="1" alt=""></noscript>`}
-            </pre>
-          </div>
-        </div>
-      </section>
+    <main className="min-h-screen bg-[#F8F6F0] text-black antialiased">
+      <Nav />
+      <Hero />
+      <ScreenshotSection />
 
       {/* What Ocholens shows you */}
-      <section className="border-b border-black/8">
+      <section id="features" className="border-b border-black/8">
         <div className="mx-auto max-w-5xl px-6 py-20">
           <div className="mb-12 max-w-2xl">
             <p className="font-mono text-[11px] uppercase tracking-wide text-black/40">
@@ -141,6 +79,368 @@ export default function LandingPage() {
   );
 }
 
+// ── Nav ─────────────────────────────────────────────────────────────────────
+
+function Nav() {
+  return (
+    <header className="sticky top-0 z-20 border-b border-black/8 bg-[#F8F6F0]/85 backdrop-blur">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
+        <Link href="/" className="flex items-center gap-2">
+          <Logo />
+          <span className="text-[15px] font-semibold tracking-tight">
+            Ocholens
+          </span>
+        </Link>
+
+        <nav className="hidden items-center gap-7 text-[13.5px] font-medium text-black/55 md:flex">
+          <Link href="/pricing" className="transition-colors hover:text-black">
+            Pricing
+          </Link>
+          <Link
+            href="#how-it-works"
+            className="transition-colors hover:text-black"
+          >
+            How it works
+          </Link>
+          <Link href="#features" className="transition-colors hover:text-black">
+            For teams
+          </Link>
+          <Link href="#features" className="transition-colors hover:text-black">
+            Customers
+          </Link>
+        </nav>
+
+        <div className="flex items-center gap-1.5">
+          <Link
+            href="/sign-in"
+            className="rounded-md px-3 py-1.5 text-[13.5px] font-medium text-black/55 transition-colors hover:text-black"
+          >
+            Sign in
+          </Link>
+          <Link
+            href="/sign-up"
+            className="inline-flex h-9 items-center rounded-lg bg-black px-4 text-[13.5px] font-medium text-white transition-colors hover:bg-black/85"
+          >
+            Start tracking free
+          </Link>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+// ── Hero ────────────────────────────────────────────────────────────────────
+
+function Hero() {
+  return (
+    <section className="relative overflow-hidden">
+      {/* Soft accent glow behind the headline. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-[-120px] h-[460px] w-[860px] -translate-x-1/2 rounded-full opacity-[0.16] blur-3xl"
+        style={{
+          background: `radial-gradient(circle, ${ACCENT}, transparent 70%)`,
+        }}
+      />
+      <div className="relative mx-auto max-w-3xl px-6 pt-20 pb-14 text-center sm:pt-28">
+        {/* Category badge — coloured dot + label. */}
+        <div className="mx-auto mb-7 inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-3 py-1 text-[12px] font-medium text-black/65 shadow-sm">
+          <span
+            className="h-1.5 w-1.5 rounded-full"
+            style={{ backgroundColor: ACCENT }}
+          />
+          AI traffic analytics
+        </div>
+
+        <h1 className="text-balance text-[44px] font-semibold leading-[1.04] tracking-[-0.04em] text-black sm:text-[68px]">
+          See every visit
+          <br />
+          from <span style={{ color: ACCENT }}>AI</span>
+        </h1>
+
+        <p className="mx-auto mt-6 max-w-xl text-balance text-[15px] leading-relaxed text-black/55 sm:text-[17px]">
+          See exactly when AI tools send people to your site — and which
+          crawlers are training on your content.
+        </p>
+
+        <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <Link
+            href="/sign-up"
+            className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-black px-6 text-[15px] font-medium text-white transition-colors hover:bg-black/85 sm:w-auto"
+          >
+            Start tracking free
+          </Link>
+          <Link
+            href="/sign-in"
+            className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-black/15 bg-white px-6 text-[15px] font-medium text-black transition-colors hover:bg-black/[0.03] sm:w-auto"
+          >
+            See live dashboard
+          </Link>
+        </div>
+
+        <p className="mt-5 text-[13px] text-black/45">
+          Free forever plan&nbsp;&nbsp;·&nbsp;&nbsp;30-second
+          install&nbsp;&nbsp;·&nbsp;&nbsp;No card required
+        </p>
+
+        <div className="mt-8">
+          <a
+            href="mailto:hello@ocholens.com"
+            className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white/70 px-3 py-1 text-[12.5px] text-black/55 transition-colors hover:text-black"
+          >
+            <ChatIcon />
+            Speak to sales
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── Screenshot section ──────────────────────────────────────────────────────
+
+function ScreenshotSection() {
+  return (
+    <section id="how-it-works" className="border-b border-black/8">
+      <div className="mx-auto max-w-5xl px-6 pb-24 pt-2 sm:pb-28">
+        <div className="relative">
+          <BrowserMock />
+
+          {/* Floating annotation callouts — overlap the screenshot edges,
+              hidden on small screens where there's no room to point. */}
+          <AnnotationCard
+            className="absolute right-0 top-24 hidden lg:flex lg:-right-12"
+            icon={<SparkIcon />}
+            label="ChatGPT referrals"
+            sub="Counted as a real source"
+          />
+          <AnnotationCard
+            className="absolute bottom-28 left-0 hidden lg:flex lg:-left-12"
+            icon={<ShieldCheckIcon />}
+            label="ClaudeBot crawls"
+            sub="Verified against vendor IPs"
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// Browser-chrome window wrapping a mocked-up Ocholens dashboard. There's no
+// screenshot asset yet, so the dashboard is built in markup — close enough to
+// the real thing to read as a product shot.
+function BrowserMock() {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-[0_40px_90px_-30px_rgba(0,0,0,0.32)]">
+      {/* Chrome bar */}
+      <div className="flex items-center gap-3 border-b border-black/8 bg-[#f4f3f0] px-4 py-3">
+        <div className="flex gap-1.5">
+          <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
+          <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
+          <span className="h-3 w-3 rounded-full bg-[#28c840]" />
+        </div>
+        <div className="mx-auto flex items-center gap-1.5 rounded-md bg-white px-3 py-1 text-[11px] text-black/40 ring-1 ring-black/5">
+          <LockIcon />
+          ocholens.com/app
+        </div>
+        <div className="w-[54px]" aria-hidden />
+      </div>
+
+      {/* Dashboard body */}
+      <div className="bg-[#fafafa] p-4 sm:p-6">
+        <div className="flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <div className="truncate font-mono text-[13px] text-black sm:text-[15px]">
+              acme.com
+            </div>
+            <div className="mt-0.5 text-[11px] text-black/40">
+              Acme Inc · last 30 days
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-50 px-2 py-1 text-[10.5px] text-emerald-700">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              Live
+            </span>
+            <span className="hidden rounded-md border border-black/10 bg-white px-2 py-1 text-[10.5px] text-black/50 sm:inline">
+              Last 30 days
+            </span>
+          </div>
+        </div>
+
+        {/* Stat tiles */}
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+          <StatTile label="Crawler hits" value="12,840" />
+          <StatTile label="AI referrals" value="3,201" />
+          <StatTile label="Total events" value="41,902" />
+          <StatTile label="Last event" value="2m ago" />
+        </div>
+
+        {/* Trend chart */}
+        <div className="mt-3 rounded-lg border border-black/8 bg-white p-3 sm:p-4">
+          <div className="flex items-center justify-between">
+            <div className="text-[12px] font-medium text-black">
+              AI referrals
+            </div>
+            <div className="font-mono text-[10px] text-black/40">
+              last 30 days
+            </div>
+          </div>
+          <MiniAreaChart />
+        </div>
+
+        {/* Source + crawler lists */}
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <ListCard
+            title="AI sources"
+            rows={[
+              { name: "ChatGPT", value: 1840, pct: 100 },
+              { name: "Claude", value: 720, pct: 52 },
+              { name: "Perplexity", value: 410, pct: 30 },
+              { name: "Gemini", value: 231, pct: 16 },
+            ]}
+          />
+          <ListCard
+            title="Verified crawlers"
+            verified
+            rows={[
+              { name: "ClaudeBot", value: 5120, pct: 100 },
+              { name: "GPTBot", value: 3980, pct: 78 },
+              { name: "PerplexityBot", value: 2210, pct: 44 },
+              { name: "Google-Extended", value: 1530, pct: 30 },
+            ]}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-black/8 bg-white p-2.5 sm:p-3">
+      <div className="text-[9.5px] uppercase tracking-wide text-black/40 sm:text-[10px]">
+        {label}
+      </div>
+      <div className="mt-1 font-mono text-[15px] font-medium tabular-nums text-black sm:text-[18px]">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function MiniAreaChart() {
+  // Hand-tuned points for a believable upward 30-day trend.
+  const pts =
+    "0,38 8,34 16,36 24,29 32,31 40,23 48,26 56,18 64,21 72,13 80,16 88,9 96,12 100,7";
+  return (
+    <svg
+      viewBox="0 0 100 44"
+      preserveAspectRatio="none"
+      className="mt-3 h-20 w-full sm:h-24"
+      aria-hidden
+    >
+      <defs>
+        <linearGradient id="ocho-area" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={ACCENT} stopOpacity="0.28" />
+          <stop offset="100%" stopColor={ACCENT} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={`0,44 ${pts} 100,44`} fill="url(#ocho-area)" />
+      <polyline
+        points={pts}
+        fill="none"
+        stroke={ACCENT}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  );
+}
+
+function ListCard({
+  title,
+  rows,
+  verified = false,
+}: {
+  title: string;
+  rows: { name: string; value: number; pct: number }[];
+  verified?: boolean;
+}) {
+  return (
+    <div className="rounded-lg border border-black/8 bg-white p-3 sm:p-4">
+      <div className="flex items-center gap-1.5">
+        <div className="text-[12px] font-medium text-black">{title}</div>
+        {verified && (
+          <span className="inline-flex items-center gap-0.5 rounded bg-emerald-50 px-1 py-px text-[9px] font-medium text-emerald-600">
+            ✓ verified
+          </span>
+        )}
+      </div>
+      <div className="mt-3 space-y-2.5">
+        {rows.map((r) => (
+          <div key={r.name} className="flex items-center gap-2.5">
+            <div className="w-20 shrink-0 truncate text-[11px] text-black/70 sm:w-24 sm:text-[12px]">
+              {r.name}
+            </div>
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/[0.06]">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${r.pct}%`,
+                  backgroundColor: verified ? "#10b981" : ACCENT,
+                }}
+              />
+            </div>
+            <div className="w-9 shrink-0 text-right font-mono text-[10.5px] tabular-nums text-black/45">
+              {r.value.toLocaleString()}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AnnotationCard({
+  className,
+  icon,
+  label,
+  sub,
+}: {
+  className?: string;
+  icon: ReactNode;
+  label: string;
+  sub: string;
+}) {
+  return (
+    <div
+      className={`items-center gap-2.5 rounded-2xl border border-black/5 bg-white px-3.5 py-2.5 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.28)] ${
+        className ?? ""
+      }`}
+    >
+      <span
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
+        style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
+      >
+        {icon}
+      </span>
+      <div className="text-left">
+        <div className="text-[12.5px] font-semibold leading-tight text-black">
+          {label}
+        </div>
+        <div className="mt-0.5 text-[11px] leading-tight text-black/45">
+          {sub}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Kept sections ───────────────────────────────────────────────────────────
+
 function Feature({ title, body }: { title: string; body: string }) {
   return (
     <div className="p-8">
@@ -174,6 +474,8 @@ function Pillar({
   );
 }
 
+// ── Icons ───────────────────────────────────────────────────────────────────
+
 function Logo() {
   return (
     <svg
@@ -189,16 +491,80 @@ function Logo() {
   );
 }
 
-function GridBackdrop() {
+function SparkIcon() {
   return (
-    <div
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="currentColor"
       aria-hidden
-      className="pointer-events-none absolute inset-0 mask-[radial-gradient(ellipse_at_center,black_30%,transparent_70%)]"
-      style={{
-        backgroundImage:
-          "linear-gradient(to right, rgba(0,0,0,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.06) 1px, transparent 1px)",
-        backgroundSize: "44px 44px",
-      }}
-    />
+    >
+      <path d="M7 0.5 L8.3 5.7 L13.5 7 L8.3 8.3 L7 13.5 L5.7 8.3 L0.5 7 L5.7 5.7 Z" />
+    </svg>
+  );
+}
+
+function ShieldCheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+      <path
+        d="M7 1 L12 3 V7 C12 10 9.5 12.3 7 13 C4.5 12.3 2 10 2 7 V3 Z"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M4.8 7 L6.4 8.6 L9.4 5.2"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ChatIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden>
+      <rect
+        x="1.6"
+        y="2.2"
+        width="10.8"
+        height="7.6"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+      <path
+        d="M4.5 9.8 L4.5 12 L7.2 9.8"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function LockIcon() {
+  return (
+    <svg width="9" height="9" viewBox="0 0 10 10" fill="none" aria-hidden>
+      <rect
+        x="2"
+        y="4.3"
+        width="6"
+        height="4.2"
+        rx="1"
+        stroke="currentColor"
+        strokeWidth="1"
+      />
+      <path
+        d="M3.4 4.3 V3 C3.4 2.1 4.1 1.5 5 1.5 C5.9 1.5 6.6 2.1 6.6 3 V4.3"
+        stroke="currentColor"
+        strokeWidth="1"
+      />
+    </svg>
   );
 }
