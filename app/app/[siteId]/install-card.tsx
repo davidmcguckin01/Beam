@@ -57,32 +57,34 @@ export function InstallCard({
 
   return (
     <section className="overflow-hidden rounded-lg border border-black/8 bg-white">
-      {/* Header — the detected chip tailors the prompt; it is not a tab picker. */}
-      <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-black/8 px-6 py-3.5">
-        <div className="flex items-baseline gap-3">
-          <h2 className="text-[13px] font-medium text-black">Install</h2>
+      {/* Header — the detected platform tailors the prompt below; the user can
+          re-run detection or clear it from here. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-black/8 px-6 py-3">
+        <h2 className="text-[13px] font-medium text-black">Install</h2>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-medium uppercase tracking-wide text-black/35">
+            Platform
+          </span>
           {detected ? (
             <>
-              <span className="font-mono text-[11px] tabular-nums text-black/55">
-                detected: <span className="text-black">{detected.label}</span>
-              </span>
-              <form action={resetStackAction}>
-                <input type="hidden" name="siteId" value={siteId} />
-                <button
-                  type="submit"
-                  className="font-mono text-[11px] text-black/35 hover:text-black"
-                >
-                  reset
-                </button>
-              </form>
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-black/3 py-1 pl-2.5 pr-1">
+                <span
+                  className="h-1.5 w-1.5 rounded-full bg-emerald-500"
+                  aria-hidden
+                />
+                <span className="font-mono text-[11px] text-black">
+                  {detected.label}
+                </span>
+                <ResetPlatformButton siteId={siteId} />
+              </div>
+              {detected.serverSideAvailable === false && (
+                <span className="text-[10.5px] text-black/40">HTML-only</span>
+              )}
             </>
           ) : (
             <DetectPlatformButton siteId={siteId} />
           )}
         </div>
-        {detected?.serverSideAvailable === false && (
-          <span className="text-[11px] text-black/45">HTML-only platform</span>
-        )}
       </div>
 
       {/* Primary surface — copy the prompt, hand it to your AI editor. */}
@@ -287,18 +289,47 @@ function DetectPlatformButton({ siteId }: { siteId: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex items-center gap-1.5 font-mono text-[11px] text-black/55 hover:text-black disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 rounded-full border border-black/15 bg-white px-3 py-1 text-[11.5px] font-medium text-black/70 shadow-sm transition-colors hover:border-black/30 hover:text-black disabled:opacity-60"
       >
-        {pending ? (
-          <>
-            <Spinner />
-            detecting…
-          </>
-        ) : (
-          "detect platform →"
-        )}
+        {pending ? <Spinner /> : <ScanIcon />}
+        {pending ? "Detecting…" : "Detect platform"}
       </button>
     </form>
+  );
+}
+
+// Clears a detected platform — the small ✕ inside the platform chip. Drops
+// the header back to the "Detect platform" control.
+function ResetPlatformButton({ siteId }: { siteId: string }) {
+  return (
+    <form action={resetStackAction}>
+      <input type="hidden" name="siteId" value={siteId} />
+      <button
+        type="submit"
+        aria-label="Clear detected platform"
+        title="Clear detected platform"
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full text-black/30 transition-colors hover:bg-black/10 hover:text-black/70"
+      >
+        <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden>
+          <path
+            d="M1.4 1.4 L6.6 6.6 M6.6 1.4 L1.4 6.6"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+          />
+        </svg>
+      </button>
+    </form>
+  );
+}
+
+// Target/radar mark for the "Detect platform" button.
+function ScanIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
+      <circle cx="6" cy="6" r="4.6" stroke="currentColor" strokeWidth="1.2" />
+      <circle cx="6" cy="6" r="1.4" fill="currentColor" />
+    </svg>
   );
 }
 
