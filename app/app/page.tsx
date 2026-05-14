@@ -9,7 +9,9 @@ import { createSiteAction } from "./actions";
 import { inviteAction } from "./settings/actions";
 import { skipInviteStepAction } from "./setup-actions";
 import { INVITE_SKIPPED_COOKIE } from "@/lib/setup-cookies";
+import { companyDomainFromEmail } from "@/lib/email-domain";
 import { BeamHeader } from "@/components/beam-header";
+import { OnboardingDomainInput } from "./onboarding-domain-input";
 
 export const dynamic = "force-dynamic";
 
@@ -98,7 +100,9 @@ export default async function AppEntryPage() {
   if (sites.length === 0) {
     return (
       <Shell session={session} sites={headerSites}>
-        <StepOne />
+        <StepOne
+          suggestedDomain={companyDomainFromEmail(session.user.email)}
+        />
       </Shell>
     );
   }
@@ -229,7 +233,7 @@ function Shell({
 
 // ── Step 1 ─────────────────────────────────────────────────────────────────
 
-function StepOne() {
+function StepOne({ suggestedDomain }: { suggestedDomain: string | null }) {
   return (
     <StepFrame n={1} title="Add your site">
       <p className="text-[13px] text-black/55">
@@ -240,15 +244,7 @@ function StepOne() {
         action={createSiteAction}
         className="mt-5 flex flex-col gap-2 sm:flex-row"
       >
-        <input
-          name="domain"
-          type="text"
-          required
-          placeholder="example.com"
-          autoComplete="off"
-          autoFocus
-          className="block w-full rounded-md border border-black/10 bg-white px-3 py-2.5 text-[14px] text-black placeholder:text-black/30 focus:border-black/40 focus:outline-none"
-        />
+        <OnboardingDomainInput defaultValue={suggestedDomain ?? undefined} />
         <button
           type="submit"
           className="inline-flex h-10 shrink-0 items-center justify-center rounded-md bg-black px-5 text-[13px] font-medium text-white hover:bg-black/85"
@@ -256,6 +252,11 @@ function StepOne() {
           Create site →
         </button>
       </form>
+      {suggestedDomain && (
+        <p className="mt-2 text-[12px] text-black/40">
+          Guessed from your email — edit it if your site lives elsewhere.
+        </p>
+      )}
     </StepFrame>
   );
 }
