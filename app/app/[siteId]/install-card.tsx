@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import type { SnippetTab } from "@/lib/snippets";
-import { redetectStackAction } from "@/app/app/actions";
+import { redetectStackAction, sendTestPingAction } from "@/app/app/actions";
 
 type DetectedInfo = {
   label: string;
@@ -80,10 +80,32 @@ export function InstallCard({
             number="03"
             title={tab.doneInstruction ?? DEFAULT_DONE}
             muted
-          />
+          >
+            <TestPingButton siteId={siteId} />
+          </Step>
         </ol>
       </div>
     </section>
+  );
+}
+
+function TestPingButton({ siteId }: { siteId: string }) {
+  const [pending, startTransition] = useTransition();
+  return (
+    <form
+      action={(fd) => {
+        startTransition(() => sendTestPingAction(fd));
+      }}
+    >
+      <input type="hidden" name="siteId" value={siteId} />
+      <button
+        type="submit"
+        disabled={pending}
+        className="font-mono text-[11px] text-black/55 hover:text-black disabled:opacity-50"
+      >
+        {pending ? "sending…" : "or send a test ping →"}
+      </button>
+    </form>
   );
 }
 

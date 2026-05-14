@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { formatDistanceToNow } from "date-fns";
+import { TEST_PING_SOURCE } from "@/lib/test-ping";
 import {
   LineChart,
   Line,
@@ -106,7 +107,11 @@ function dayKey(d: Date): string {
 
 function build30DayBuckets(events: EventRow[]) {
   const sources = Array.from(
-    new Set(events.map((e) => e.source).filter((s): s is string => !!s))
+    new Set(
+      events
+        .map((e) => e.source)
+        .filter((s): s is string => !!s && s !== TEST_PING_SOURCE)
+    )
   ).sort();
   const days: string[] = [];
   const now = new Date();
@@ -123,7 +128,7 @@ function build30DayBuckets(events: EventRow[]) {
   });
   const indexByDay = new Map(days.map((d, i) => [d, i]));
   for (const e of events) {
-    if (!e.source) continue;
+    if (!e.source || e.source === TEST_PING_SOURCE) continue;
     const k = dayKey(new Date(e.ts));
     const idx = indexByDay.get(k);
     if (idx === undefined) continue;
@@ -143,7 +148,7 @@ export function Dashboard({
   detected,
 }: Props) {
   const totalAi = useMemo(
-    () => events.filter((e) => !!e.source).length,
+    () => events.filter((e) => !!e.source && e.source !== TEST_PING_SOURCE).length,
     [events]
   );
   const lastEventTs = events[0]?.ts;
@@ -189,7 +194,13 @@ export function Dashboard({
               ai={totalAi}
               crawlers={crawlerTotal}
               sources={
-                new Set(events.map((e) => e.source).filter(Boolean)).size
+                new Set(
+                  events
+                    .map((e) => e.source)
+                    .filter(
+                      (s): s is string => !!s && s !== TEST_PING_SOURCE
+                    )
+                ).size
               }
               lastEventTs={lastEventTs}
             />

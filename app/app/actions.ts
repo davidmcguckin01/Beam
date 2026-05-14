@@ -1,11 +1,13 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { site } from "@/db/schema";
+import { site, event } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { ensureBeamSession } from "@/lib/beam-auth";
+import { ensureBeamSession, isMemberOfOrg } from "@/lib/beam-auth";
 import { detectStack } from "@/lib/stack-detect";
+import { TEST_PING_SOURCE } from "@/lib/test-ping";
 
 function generateApiKey(): string {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -96,5 +98,39 @@ export async function redetectStackAction(formData: FormData) {
     })
     .where(eq(site.id, s.id));
 
+  redirect(`/app/${s.id}`);
+}
+
+// Writes a synthetic event so the user can verify the dashboard pipeline
+// without having to visit their site from an external referrer.
+export async function sendTestPingAction(formData: FormData) {
+  const session = await ensureBeamSession();
+  if (!session) redirect("/sign-in");
+
+  const siteId = String(formData.get("siteId") || "");
+  if (!siteId) redirect("/app");
+
+  const rows = await db
+    .select()
+    .from(site)
+    .where(eq(site.id, siteId))
+    .limit(1);
+  const s = rows[0];
+  if (!s) redirect("/app");
+
+  const member = await isMemberOfOrg(session.user.id, s.orgId);
+  if (!member) redirect("/app");
+
+  await db.insert(event).values({
+    siteId: s.id,
+    url: `https://${s.domain}/`,
+    referrer: "https://beam.dev/test",
+    referrerHost: "beam.dev",
+    source: TEST_PING_SOURCE,
+    country: null,
+    kind: "human",
+  });
+
+  revalidatePath(`/app/${s.id}`);
   redirect(`/app/${s.id}`);
 }
