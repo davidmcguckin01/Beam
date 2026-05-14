@@ -30,27 +30,26 @@ export default function LandingPage() {
         </div>
       </header>
 
+      {/* Hero — problem first */}
       <section className="relative overflow-hidden border-b border-black/8">
         <GridBackdrop />
-        <div className="relative mx-auto max-w-4xl px-6 pt-24 pb-24 text-center sm:pt-32 sm:pb-28">
-          <div className="mx-auto mb-8 inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-medium text-black/70 shadow-[0_1px_0_0_rgba(0,0,0,0.04)]">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-black opacity-30" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-black" />
-            </span>
-            Free during beta
+        <div className="relative mx-auto max-w-4xl px-6 pt-20 pb-20 text-center sm:pt-28">
+          <div className="mx-auto mb-8 inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-black/60">
+            The analytics gap
           </div>
           <h1 className="text-balance text-5xl font-semibold tracking-[-0.04em] text-black sm:text-6xl">
-            See exactly when AI sends people to your site.
+            Most of your AI traffic shows up as &ldquo;direct&rdquo; in Google
+            Analytics.
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-balance text-lg text-black/60">
-            ChatGPT. Claude. Perplexity. Gemini. One line of JavaScript,
-            real-time dashboard, no SDK.
+            ChatGPT, Claude, and Perplexity are sending real readers to your
+            site every day — and the crawlers behind them are training on your
+            content. Standard analytics can&apos;t tell you any of it.
           </p>
           <div className="mt-10 flex items-center justify-center gap-3">
             <Link
               href="/sign-up"
-              className="inline-flex h-10 items-center justify-center rounded-md bg-black px-5 text-sm font-medium text-white shadow-[0_1px_0_0_rgba(255,255,255,0.1)_inset] hover:bg-black/85"
+              className="inline-flex h-10 items-center justify-center rounded-md bg-black px-5 text-sm font-medium text-white hover:bg-black/85"
             >
               Start tracking →
             </Link>
@@ -62,8 +61,17 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          <div className="mx-auto mt-16 max-w-2xl rounded-lg border border-black/10 bg-black p-1 shadow-[0_24px_60px_-15px_rgba(0,0,0,0.25)]">
-            <pre className="overflow-x-auto rounded-md bg-[#0a0a0a] px-4 py-3 text-left font-mono text-[12px] leading-relaxed text-white/90">
+          {/* Code preview — light */}
+          <div className="mx-auto mt-16 max-w-2xl overflow-hidden rounded-lg border border-black/10 bg-white shadow-[0_24px_60px_-24px_rgba(0,0,0,0.18)]">
+            <div className="flex items-center justify-between border-b border-black/8 px-3 py-1.5">
+              <span className="font-mono text-[10px] uppercase tracking-wide text-black/40">
+                html
+              </span>
+              <span className="font-mono text-[10px] text-black/30">
+                paste in &lt;head&gt;
+              </span>
+            </div>
+            <pre className="overflow-x-auto px-4 py-3 text-left font-mono text-[12px] leading-relaxed text-black/85">
 {`<script async src="https://beam.dev/p.js" data-site="YOUR_KEY"></script>
 <noscript><img src="https://beam.dev/api/i?s=YOUR_KEY&c=1" width="1" height="1" alt=""></noscript>`}
             </pre>
@@ -71,19 +79,46 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* What Beam shows you */}
+      <section className="border-b border-black/8">
+        <div className="mx-auto max-w-5xl px-6 py-20">
+          <div className="mb-12 max-w-2xl">
+            <p className="font-mono text-[11px] uppercase tracking-wide text-black/40">
+              What Beam shows you
+            </p>
+            <h2 className="mt-2 text-3xl font-semibold tracking-[-0.03em]">
+              Two kinds of AI traffic. One dashboard.
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-black/10 bg-black/8 sm:grid-cols-2">
+            <Pillar
+              tag="Humans"
+              title="People clicking through from chat tools"
+              body="When a user reads about you on ChatGPT or Claude and clicks the link, your analytics see it as direct. Beam sees ChatGPT, Claude, Perplexity, Gemini, Copilot, You.com, Phind, Meta AI, DuckDuckGo — and tells you which page they landed on."
+            />
+            <Pillar
+              tag="Bots"
+              title="Crawlers training on your content"
+              body="GPTBot, ClaudeBot, PerplexityBot, OAI-SearchBot, Google-Extended, Anthropic-AI. They don&apos;t run JavaScript — most analytics never see them. Beam catches them server-side and verifies them against the vendor&apos;s published IP ranges."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Three quick selling points */}
       <section className="border-b border-black/8">
         <div className="mx-auto grid max-w-6xl grid-cols-1 divide-y divide-black/8 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
           <Feature
-            title="Real-time tracking"
-            body="Events stream in within seconds of a visit landing from any major AI tool."
+            title="Real-time"
+            body="Events stream in within seconds of a visit. The dashboard updates as you reload."
           />
           <Feature
-            title="Every major AI source"
-            body="ChatGPT, Claude, Perplexity, Gemini, Copilot, You.com, Phind, Meta AI, DuckDuckGo."
+            title="No SDK"
+            body="One script tag for humans, optional middleware for crawlers. No build step. No dependencies."
           />
           <Feature
-            title="Install in 30 seconds"
-            body="One script tag in your <head>. No build step, no SDK, no dependencies."
+            title="30 seconds"
+            body="Add your domain, paste the snippet, refresh the dashboard. We auto-detect your stack and tailor the install."
           />
         </div>
       </section>
@@ -95,10 +130,7 @@ export default function LandingPage() {
             <span>Beam</span>
           </div>
           <div className="flex items-center gap-6">
-            <a
-              href="mailto:hello@beam.dev"
-              className="hover:text-black"
-            >
+            <a href="mailto:hello@beam.dev" className="hover:text-black">
               hello@beam.dev
             </a>
             <Link href="/sign-in" className="hover:text-black">
@@ -122,6 +154,28 @@ function Feature({ title, body }: { title: string; body: string }) {
   );
 }
 
+function Pillar({
+  tag,
+  title,
+  body,
+}: {
+  tag: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="bg-white p-8">
+      <div className="font-mono text-[10px] uppercase tracking-wide text-black/40">
+        {tag}
+      </div>
+      <h3 className="mt-2 text-lg font-semibold tracking-tight text-black">
+        {title}
+      </h3>
+      <p className="mt-3 text-sm leading-relaxed text-black/60">{body}</p>
+    </div>
+  );
+}
+
 function Logo() {
   return (
     <svg
@@ -132,10 +186,7 @@ function Logo() {
       aria-hidden
       className="text-black"
     >
-      <path
-        d="M10 1.5 L18.5 18.5 L1.5 18.5 Z"
-        fill="currentColor"
-      />
+      <path d="M10 1.5 L18.5 18.5 L1.5 18.5 Z" fill="currentColor" />
     </svg>
   );
 }

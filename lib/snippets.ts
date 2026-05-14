@@ -17,14 +17,22 @@ export type SnippetKey =
   | "webflow"
   | "framer"
   | "wix"
-  | "squarespace";
+  | "squarespace"
+  | "ai-prompt";
 
 export type SnippetTab = {
   key: SnippetKey;
   label: string;
   lang: "html" | "ts" | "js" | "php" | "txt";
   body: string;
+  // One-line "what does this catch / where does it go" subtitle shown above
+  // the code block.
   blurb: string;
+  // What to do with the snippet after copying it. Renders as Step 02.
+  pasteInstruction: string;
+  // Closing line. Renders as Step 03. Defaults to "Visit your site — events
+  // arrive within seconds."
+  doneInstruction?: string;
 };
 
 function pixelHtml(appUrl: string, apiKey: string) {
@@ -124,24 +132,81 @@ module.exports = { beamMiddleware };
 // app.use(beamMiddleware);`;
 }
 
+function aiPromptBody(opts: {
+  appUrl: string;
+  apiKey: string;
+  stack: Stack | null | undefined;
+  domain: string;
+}) {
+  const { appUrl, apiKey, stack, domain } = opts;
+  const stackLabel =
+    stack && stack !== "unknown" ? prettyStack(stack) : "(unknown — check the package.json / framework files in this repo)";
+
+  const pixel = pixelHtml(appUrl, apiKey);
+
+  // Add the most relevant middleware snippet inline so the AI tool has
+  // everything it needs without extra round-trips.
+  let middlewareBlock = "";
+  if (stack === "nextjs" || stack === "vercel") {
+    middlewareBlock = `\n\n3) Server-side crawler detection — create middleware.ts at the project root (or proxy.ts on Next 16+):
+
+\`\`\`ts
+${nextjsBody(appUrl, apiKey)}
+\`\`\``;
+  } else if (stack === "cloudflare-pages") {
+    middlewareBlock = `\n\n3) Server-side crawler detection — deploy this as a Cloudflare Route Worker on this domain:
+
+\`\`\`js
+${cloudflareBody(appUrl, apiKey)}
+\`\`\``;
+  } else if (
+    stack === "shopify" ||
+    stack === "wordpress" ||
+    stack === "webflow" ||
+    stack === "framer" ||
+    stack === "wix" ||
+    stack === "squarespace"
+  ) {
+    middlewareBlock = `\n\n3) Skip server-side middleware — this site is on ${stackLabel}, which doesn't expose request middleware. The <noscript> image in step 1 catches the crawlers that render HTML.`;
+  } else {
+    middlewareBlock = `\n\n3) If this stack supports request middleware (Next.js, Express, Cloudflare Workers, etc.), also install request-level crawler detection. Match this UA regex:
+
+\`\`\`
+/${BOTS_REGEX_SOURCE}/i
+\`\`\`
+
+When matched, fire-and-forget POST to ${appUrl}/api/i with JSON body:
+\`\`\`json
+{ "s": "${apiKey}", "ua": "...", "url": "...", "ip": "...", "country": "..." }
+\`\`\``;
+  }
+
+  return `You're installing Beam (an AI traffic analytics tool) on my ${stackLabel} site at ${domain}.
+
+My Beam apiKey is: ${apiKey}
+The Beam ingest endpoint is: ${appUrl}/api/i
+
+Two things to install:
+
+1) JS pixel — add this to my <head> tag on every page:
+
+\`\`\`html
+${pixel}
+\`\`\`
+
+2) Verify the snippet is rendered into <head> on every public page. For frameworks with a single layout file (Next.js app/layout.tsx, _document.tsx, theme.liquid, etc.), one place is enough.${middlewareBlock}
+
+After installing, tell me exactly which files you changed and what to verify in the browser DevTools to confirm Beam is firing.`;
+}
+
 function shopifyBody(appUrl: string, apiKey: string) {
-  return `<!--
-  Where to paste:
-    Online Store → Themes → Edit code → layout/theme.liquid
-    Find the closing </head> tag and paste this directly above it.
--->
-${pixelHtml(appUrl, apiKey)}`;
+  return pixelHtml(appUrl, apiKey);
 }
 
 function wordpressBody(appUrl: string, apiKey: string) {
   return `<?php
-/*
-  Where to paste (easiest): use the "WPCode" or "Insert Headers and Footers"
-  plugin, then paste the <script>/<noscript> block into the Site Header
-  section. Skip the PHP below in that case.
-
-  Otherwise add this to your theme's functions.php:
-*/
+// Add to your theme's functions.php — or use the WPCode plugin and paste
+// the <script>/<noscript> block in step 1 directly into the Site Header.
 
 add_action('wp_head', function () {
   echo '<script async src="${appUrl}/p.js" data-site="${apiKey}"></script>' . "\\n";
@@ -149,52 +214,11 @@ add_action('wp_head', function () {
 });`;
 }
 
-function webflowBody(appUrl: string, apiKey: string) {
-  return `<!--
-  Where to paste:
-    Project Settings → Custom Code → Head Code
-
-  Note: Webflow doesn't support server-side middleware, so crawler-only
-  bots that don't render HTML won't appear. The <noscript> image catches
-  bots that do parse HTML (most major crawlers).
--->
-${pixelHtml(appUrl, apiKey)}`;
+function htmlOnlyBody(appUrl: string, apiKey: string) {
+  return pixelHtml(appUrl, apiKey);
 }
 
-function framerBody(appUrl: string, apiKey: string) {
-  return `<!--
-  Where to paste:
-    Site Settings → General → Custom Code → Start of <head>
-
-  Note: Framer is HTML-only. Server-side crawler detection isn't available.
--->
-${pixelHtml(appUrl, apiKey)}`;
-}
-
-function wixBody(appUrl: string, apiKey: string) {
-  return `<!--
-  Where to paste:
-    Settings → Custom Code → + Add Custom Code → Head
-    (Custom code requires a Wix Premium plan.)
-
-  Note: Wix is HTML-only. Server-side crawler detection isn't available.
--->
-${pixelHtml(appUrl, apiKey)}`;
-}
-
-function squarespaceBody(appUrl: string, apiKey: string) {
-  return `<!--
-  Where to paste:
-    Settings → Advanced → Code Injection → Header
-
-  Note: Squarespace is HTML-only. Server-side crawler detection isn't available.
--->
-${pixelHtml(appUrl, apiKey)}`;
-}
-
-// Catalog of every snippet, in canonical order. The install card filters &
-// reorders based on the detected stack.
-function allTabs(appUrl: string, apiKey: string): SnippetTab[] {
+function allTabs(appUrl: string, apiKey: string, stack: Stack | null | undefined, domain: string): SnippetTab[] {
   return [
     {
       key: "pixel",
@@ -203,6 +227,8 @@ function allTabs(appUrl: string, apiKey: string): SnippetTab[] {
       blurb:
         "Catches human referrals from chatgpt.com / claude.ai / etc. Works on any site.",
       body: pixelHtml(appUrl, apiKey),
+      pasteInstruction:
+        "Paste in your <head> on every page you want tracked.",
     },
     {
       key: "nextjs",
@@ -211,14 +237,18 @@ function allTabs(appUrl: string, apiKey: string): SnippetTab[] {
       blurb:
         "Catches AI training + search crawlers (GPTBot, ClaudeBot) — they never run JS.",
       body: nextjsBody(appUrl, apiKey),
+      pasteInstruction:
+        "Save as middleware.ts (or proxy.ts on Next 16+) at your project root.",
     },
     {
       key: "cloudflare",
       label: "Cloudflare",
       lang: "js",
       blurb:
-        "Best coverage. Sits in front of origin so every crawler hit is captured.",
+        "Best coverage — sits in front of origin so every crawler hit is captured.",
       body: cloudflareBody(appUrl, apiKey),
+      pasteInstruction:
+        "Deploy as a Route Worker on your domain in the Cloudflare dashboard.",
     },
     {
       key: "node",
@@ -226,53 +256,77 @@ function allTabs(appUrl: string, apiKey: string): SnippetTab[] {
       lang: "js",
       blurb: "For Node backends not on Next.js or behind Cloudflare.",
       body: nodeBody(appUrl, apiKey),
+      pasteInstruction:
+        "Drop in early in your Express stack with app.use(beamMiddleware).",
     },
     {
       key: "shopify",
       label: "Shopify",
       lang: "html",
-      blurb: "Paste into theme.liquid → above </head>.",
+      blurb: "Pixel only — Shopify themes don't expose request middleware.",
       body: shopifyBody(appUrl, apiKey),
+      pasteInstruction:
+        "Online Store → Themes → Edit code → layout/theme.liquid → above </head>.",
     },
     {
       key: "wordpress",
       label: "WordPress",
       lang: "php",
-      blurb: "WPCode/Insert-Headers plugin, or wp_head hook.",
+      blurb: "Use the WPCode plugin (paste the JS pixel) or wp_head().",
       body: wordpressBody(appUrl, apiKey),
+      pasteInstruction:
+        "Add to your theme's functions.php, or paste the JS pixel via the WPCode plugin (Site Header).",
     },
     {
       key: "webflow",
       label: "Webflow",
       lang: "html",
-      blurb: "Project Settings → Custom Code → Head Code.",
-      body: webflowBody(appUrl, apiKey),
+      blurb: "Pixel only — Webflow doesn't expose request middleware.",
+      body: htmlOnlyBody(appUrl, apiKey),
+      pasteInstruction: "Project Settings → Custom Code → Head Code.",
     },
     {
       key: "framer",
       label: "Framer",
       lang: "html",
-      blurb: "Site Settings → Custom Code → Start of <head>.",
-      body: framerBody(appUrl, apiKey),
+      blurb: "Pixel only — Framer is HTML-served.",
+      body: htmlOnlyBody(appUrl, apiKey),
+      pasteInstruction:
+        "Site Settings → General → Custom Code → Start of <head>.",
     },
     {
       key: "wix",
       label: "Wix",
       lang: "html",
-      blurb: "Settings → Custom Code → Head (Premium plan).",
-      body: wixBody(appUrl, apiKey),
+      blurb: "Pixel only — Wix is HTML-served (Premium plan required).",
+      body: htmlOnlyBody(appUrl, apiKey),
+      pasteInstruction:
+        "Settings → Custom Code → + Add Custom Code → Head.",
     },
     {
       key: "squarespace",
       label: "Squarespace",
       lang: "html",
-      blurb: "Settings → Advanced → Code Injection → Header.",
-      body: squarespaceBody(appUrl, apiKey),
+      blurb: "Pixel only — Squarespace is HTML-served.",
+      body: htmlOnlyBody(appUrl, apiKey),
+      pasteInstruction:
+        "Settings → Advanced → Code Injection → Header.",
+    },
+    {
+      key: "ai-prompt",
+      label: "AI prompt",
+      lang: "txt",
+      blurb:
+        "Paste this into Cursor / Claude Code / Copilot Chat in your project — it'll install Beam for you.",
+      body: aiPromptBody({ appUrl, apiKey, stack, domain }),
+      pasteInstruction:
+        "Open your AI assistant inside the project and paste the prompt.",
+      doneInstruction:
+        "Let it edit the files, then refresh the dashboard.",
     },
   ];
 }
 
-// Stacks → recommended primary tab + which platform-specific tab to surface.
 const STACK_PRIMARY: Partial<Record<Stack, SnippetKey>> = {
   nextjs: "nextjs",
   vercel: "nextjs",
@@ -285,7 +339,6 @@ const STACK_PRIMARY: Partial<Record<Stack, SnippetKey>> = {
   squarespace: "squarespace",
 };
 
-// Stacks where server-side middleware *isn't* an option — hide those tabs.
 const STACK_HIDE_SERVERSIDE = new Set<Stack>([
   "shopify",
   "wordpress",
@@ -300,32 +353,61 @@ export function buildSnippets(opts: {
   appUrl: string;
   apiKey: string;
   stack?: Stack | null;
+  domain?: string;
 }): SnippetTab[] {
-  const { appUrl, apiKey, stack } = opts;
-  const all = allTabs(appUrl, apiKey);
+  const { appUrl, apiKey, stack, domain = "your-site.com" } = opts;
+  const all = allTabs(appUrl, apiKey, stack, domain);
   const primary = stack ? STACK_PRIMARY[stack] : undefined;
   const hideServer = stack ? STACK_HIDE_SERVERSIDE.has(stack) : false;
 
-  // Filter: always include pixel + primary; include server-side options only
-  // when relevant; include other platform tabs only when none was detected.
   const keep = (t: SnippetTab): boolean => {
-    if (t.key === "pixel") return true;
+    if (t.key === "pixel" || t.key === "ai-prompt") return true;
     if (primary && t.key === primary) return true;
-    // Server-side templates: keep unless stack is HTML-only platform.
     if (t.key === "nextjs" || t.key === "cloudflare" || t.key === "node") {
       return !hideServer;
     }
-    // Other platform-specific tabs: only show when nothing detected.
     if (!stack || stack === "unknown") return true;
     return false;
   };
 
   const filtered = all.filter(keep);
 
-  // Reorder: primary first, then pixel, then the rest in original order.
+  // Order: detected platform first, then pixel, then everything else, then
+  // AI prompt last (it's the "shortcut", not the primary path).
   return filtered.sort((a, b) => {
-    const aRank = a.key === primary ? 0 : a.key === "pixel" ? 1 : 2;
-    const bRank = b.key === primary ? 0 : b.key === "pixel" ? 1 : 2;
-    return aRank - bRank;
+    const rank = (t: SnippetTab) => {
+      if (t.key === primary) return 0;
+      if (t.key === "pixel") return 1;
+      if (t.key === "ai-prompt") return 9;
+      return 5;
+    };
+    return rank(a) - rank(b);
   });
+}
+
+function prettyStack(stack: Stack): string {
+  switch (stack) {
+    case "nextjs":
+      return "Next.js";
+    case "vercel":
+      return "Vercel";
+    case "shopify":
+      return "Shopify";
+    case "wordpress":
+      return "WordPress";
+    case "webflow":
+      return "Webflow";
+    case "framer":
+      return "Framer";
+    case "wix":
+      return "Wix";
+    case "squarespace":
+      return "Squarespace";
+    case "ghost":
+      return "Ghost";
+    case "cloudflare-pages":
+      return "Cloudflare Pages";
+    default:
+      return stack;
+  }
 }

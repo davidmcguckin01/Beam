@@ -9,6 +9,8 @@ type DetectedInfo = {
   serverSideAvailable: boolean;
 } | null;
 
+const DEFAULT_DONE = "Visit your site — events arrive within seconds.";
+
 export function InstallCard({
   snippets,
   detected,
@@ -66,15 +68,55 @@ export function InstallCard({
         ))}
       </div>
 
-      <div className="px-6 py-4">
-        <p className="text-[12px] text-black/55">{tab.blurb}</p>
-        <CodeBlock body={tab.body} lang={tab.lang} />
+      <div className="px-6 py-5">
+        <p className="text-[12.5px] text-black/60">{tab.blurb}</p>
+
+        <ol className="mt-5 space-y-5">
+          <Step number="01" title="Copy">
+            <CodeBlock body={tab.body} lang={tab.lang} />
+          </Step>
+          <Step number="02" title={tab.pasteInstruction} />
+          <Step
+            number="03"
+            title={tab.doneInstruction ?? DEFAULT_DONE}
+            muted
+          />
+        </ol>
       </div>
     </section>
   );
 }
 
-// Code block stays dark — Vercel keeps code samples dark even in light-mode UI.
+function Step({
+  number,
+  title,
+  muted = false,
+  children,
+}: {
+  number: string;
+  title: React.ReactNode;
+  muted?: boolean;
+  children?: React.ReactNode;
+}) {
+  return (
+    <li className="flex gap-4">
+      <span className="mt-0.5 select-none font-mono text-[11px] tabular-nums text-black/35">
+        {number}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p
+          className={`text-[13px] ${
+            muted ? "text-black/55" : "text-black"
+          }`}
+        >
+          {title}
+        </p>
+        {children && <div className="mt-2.5">{children}</div>}
+      </div>
+    </li>
+  );
+}
+
 function CodeBlock({ body, lang }: { body: string; lang: string }) {
   const [copied, setCopied] = useState(false);
   const onCopy = async () => {
@@ -85,20 +127,20 @@ function CodeBlock({ body, lang }: { body: string; lang: string }) {
     } catch {}
   };
   return (
-    <div className="relative mt-3 overflow-hidden rounded-md border border-black/8 bg-[#0a0a0a]">
-      <div className="flex items-center justify-between border-b border-white/8 px-3 py-1.5">
-        <span className="font-mono text-[10px] uppercase tracking-wide text-white/35">
+    <div className="relative overflow-hidden rounded-md border border-black/10 bg-white">
+      <div className="flex items-center justify-between border-b border-black/8 bg-black/2.5 px-3 py-1.5">
+        <span className="font-mono text-[10px] uppercase tracking-wide text-black/40">
           {lang}
         </span>
         <button
           type="button"
           onClick={onCopy}
-          className="inline-flex h-6 items-center rounded border border-white/10 px-2 text-[11px] text-white/70 hover:bg-white/5 hover:text-white"
+          className="inline-flex h-6 items-center rounded border border-black/10 bg-white px-2 text-[11px] text-black/70 hover:bg-black/3 hover:text-black"
         >
           {copied ? "copied" : "copy"}
         </button>
       </div>
-      <pre className="max-h-96 overflow-auto px-4 py-3 font-mono text-[12.5px] leading-relaxed text-white/85">
+      <pre className="max-h-[28rem] overflow-auto px-4 py-3 font-mono text-[12.5px] leading-relaxed text-black/85">
         <code>{body}</code>
       </pre>
     </div>

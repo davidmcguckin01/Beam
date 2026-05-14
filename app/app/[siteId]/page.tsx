@@ -94,7 +94,12 @@ export default async function SiteDashboardPage({
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
   const stack = (s.stack as Stack | null) ?? null;
-  const snippets = buildSnippets({ appUrl, apiKey: s.apiKey, stack });
+  const snippets = buildSnippets({
+    appUrl,
+    apiKey: s.apiKey,
+    stack,
+    domain: s.domain,
+  });
   const detected =
     stack && stack !== "unknown"
       ? {
