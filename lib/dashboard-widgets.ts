@@ -10,9 +10,11 @@
 
 export type WidgetKey =
   | "stats"
+  | "ai-activity"
   | "ai-sources"
   | "top-pages"
   | "crawled-pages"
+  | "revisit-velocity"
   | "top-referrers"
   | "crawlers"
   | "recent-events";
@@ -50,6 +52,16 @@ export const WIDGETS: WidgetMeta[] = [
     minH: 3,
   },
   {
+    key: "ai-activity",
+    label: "AI activity by intent",
+    description:
+      "User-triggered retrievals vs search indexing vs training crawls, with the top bot in each.",
+    defaultW: 12,
+    defaultH: 5,
+    minW: 6,
+    minH: 4,
+  },
+  {
     key: "ai-sources",
     label: "AI sources chart",
     description: "30-day trend per AI source (ChatGPT, Claude, etc.).",
@@ -62,6 +74,16 @@ export const WIDGETS: WidgetMeta[] = [
     key: "crawled-pages",
     label: "Crawled pages",
     description: "URLs that AI / search crawlers hit, with which bot saw each.",
+    defaultW: 6,
+    defaultH: 12,
+    minW: 4,
+    minH: 6,
+  },
+  {
+    key: "revisit-velocity",
+    label: "Revisit velocity",
+    description:
+      "Pages crawlers come back to — shortest revisit intervals first.",
     defaultW: 6,
     defaultH: 12,
     minW: 4,
@@ -116,11 +138,14 @@ const META_BY_KEY: Record<WidgetKey, WidgetMeta> = WIDGETS.reduce(
 const VALID_KEYS = new Set<string>(WIDGETS.map((w) => w.key));
 
 // Canonical default layout — crawler-first since that's the most reliable
-// signal for AI traffic.
+// signal for AI traffic. AI activity hero leads so the user sees the most
+// actionable intent breakdown before everything else.
 export const DEFAULT_KEYS: WidgetKey[] = [
   "stats",
+  "ai-activity",
   "ai-sources",
   "crawled-pages",
+  "revisit-velocity",
   "crawlers",
   "top-pages",
   "top-referrers",

@@ -158,6 +158,37 @@ export default async function SiteDashboardPage({
     .orderBy(desc(sql`count(*)`))
     .limit(10);
 
+  // Revisit velocity — pages crawlers come back to. We compute average
+  // interval = (last_seen - first_seen) / (hits - 1), so it's only meaningful
+  // when a URL has been hit 2+ times. Sorted by shortest interval (most
+  // actively re-crawled). Used by the "Revisit velocity" widget.
+  const revisitRows = await db
+    .select({
+      url: event.url,
+      hits: sql<number>`count(*)::int`,
+      first: sql<Date>`min(${event.ts})`,
+      last: sql<Date>`max(${event.ts})`,
+      avgIntervalSeconds: sql<number>`
+        coalesce(
+          extract(epoch from (max(${event.ts}) - min(${event.ts}))) /
+          nullif(count(*) - 1, 0),
+          0
+        )::int
+      `,
+    })
+    .from(event)
+    .where(
+      and(
+        eq(event.siteId, s.id),
+        gte(event.ts, thirtyDaysAgo),
+        eq(event.kind, "crawler")
+      )
+    )
+    .groupBy(event.url)
+    .having(sql`count(*) >= 2`)
+    .orderBy(sql`extract(epoch from (max(${event.ts}) - min(${event.ts}))) / nullif(count(*) - 1, 0) asc nulls last`)
+    .limit(10);
+
   // All-time totals for the Stats tiles. Test pings are excluded so a single
   // synthetic event doesn't inflate the count or claim "last event" status.
   const [totalsRow] = await db
@@ -250,6 +281,13 @@ export default async function SiteDashboardPage({
         count: Number(r.count),
         last: r.last ? new Date(r.last).toISOString() : null,
         topBots: (r.topBots as string) || "",
+      }))}
+      revisit={revisitRows.map((r) => ({
+        url: r.url as string,
+        hits: Number(r.hits),
+        first: r.first ? new Date(r.first).toISOString() : null,
+        last: r.last ? new Date(r.last).toISOString() : null,
+        avgIntervalSeconds: Number(r.avgIntervalSeconds || 0),
       }))}
       layout={resolveLayout(s.dashboardLayout)}
       snippets={snippets}

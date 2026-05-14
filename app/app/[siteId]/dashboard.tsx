@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
@@ -93,6 +93,13 @@ type Props = {
     last: string | null;
     topBots: string;
   }[];
+  revisit: {
+    url: string;
+    hits: number;
+    first: string | null;
+    last: string | null;
+    avgIntervalSeconds: number;
+  }[];
   recentAll: RecentEventRow[];
   layout: LayoutItem[];
   snippets: SnippetTab[];
@@ -117,13 +124,25 @@ function colorFor(source: string): string {
 }
 
 const CATEGORY_LABEL: Record<Category, string> = {
-  training: "AI training",
-  search: "AI search",
-  user: "AI user",
-  unknown: "Other",
+  training: "Training crawls",
+  search: "Search indexing",
+  user: "User-triggered retrievals",
+  unknown: "Other crawlers",
 };
 
-const CATEGORY_ORDER: Category[] = ["search", "user", "training", "unknown"];
+const CATEGORY_BLURB: Record<Category, string> = {
+  user:
+    "A real person asked an LLM something and the bot fetched this page to answer.",
+  search:
+    "Crawlers building search indexes for AI-powered answer engines.",
+  training:
+    "Bots gathering content to train future LLMs. Lower-intent signal.",
+  unknown: "Unclassified crawlers.",
+};
+
+// User-triggered retrievals first — the most actionable signal of AI-driven
+// demand for your content.
+const CATEGORY_ORDER: Category[] = ["user", "search", "training", "unknown"];
 
 function flagFor(country: string | null): string {
   if (!country || country.length !== 2) return country || "—";
@@ -192,6 +211,7 @@ export function Dashboard({
   lastEventAllTime,
   topPages,
   crawledPages,
+  revisit,
   recentAll,
   layout,
   snippets,
@@ -222,6 +242,27 @@ export function Dashboard({
   const [editMode, setEditMode] = useState(false);
   const [draftLayout, setDraftLayout] = useState<LayoutItem[]>(layout);
   const { width, containerRef, mounted } = useContainerWidth();
+
+  const [live, setLive] = useState(false);
+  const liveRef = useRef<NodeJS.Timeout | null>(null);
+  useEffect(() => {
+    // Auto-refresh every 30s while Live is on. Pause during edit mode so an
+    // in-progress drag doesn't get clobbered by a layout overwrite.
+    if (!live || editMode) {
+      if (liveRef.current) {
+        clearInterval(liveRef.current);
+        liveRef.current = null;
+      }
+      return;
+    }
+    liveRef.current = setInterval(() => {
+      router.refresh();
+    }, 30_000);
+    return () => {
+      if (liveRef.current) clearInterval(liveRef.current);
+      liveRef.current = null;
+    };
+  }, [live, editMode, router]);
 
   const activeLayout = editMode ? draftLayout : layout;
   const hidden = hiddenWidgets(activeLayout);
@@ -276,6 +317,15 @@ export function Dashboard({
             total={totalEventsAllTime}
             lastEventTs={lastEventAllTime}
           />
+        );
+      case "ai-activity":
+        return (
+          <Section
+            title="AI activity by intent"
+            right="last 30 days · server-side signal"
+          >
+            <AiActivityByIntent crawlers={crawlers} />
+          </Section>
         );
       case "ai-sources":
         return (
@@ -357,6 +407,22 @@ export function Dashboard({
               <EmptyHint>No crawler hits yet.</EmptyHint>
             ) : (
               <CrawledPages data={crawledPages} />
+            )}
+          </Section>
+        );
+      case "revisit-velocity":
+        return (
+          <Section
+            title="Revisit velocity"
+            right="last 30 days · how often AI comes back"
+          >
+            {revisit.length === 0 ? (
+              <EmptyHint>
+                No URL has been crawled twice yet — revisit velocity needs 2+
+                hits per URL.
+              </EmptyHint>
+            ) : (
+              <RevisitVelocity data={revisit} />
             )}
           </Section>
         );
@@ -448,6 +514,27 @@ export function Dashboard({
                 </>
               ) : (
                 <>
+                  <button
+                    type="button"
+                    onClick={() => setLive((v) => !v)}
+                    className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[12px] transition-colors ${
+                      live
+                        ? "border-emerald-500/40 bg-emerald-50 text-emerald-700"
+                        : "border-black/10 bg-white text-black/70 hover:bg-black/3 hover:text-black"
+                    }`}
+                    title={
+                      live
+                        ? "Live: auto-refreshing every 30s"
+                        : "Click to auto-refresh every 30s"
+                    }
+                  >
+                    <span
+                      className={`inline-block h-1.5 w-1.5 rounded-full ${
+                        live ? "bg-emerald-500 animate-pulse" : "bg-black/30"
+                      }`}
+                    />
+                    Live
+                  </button>
                   <button
                     type="button"
                     onClick={() => startRefresh(() => router.refresh())}
@@ -830,12 +917,17 @@ function CategoryGroup({
   const max = Math.max(...list.map((d) => d.count), 1);
   return (
     <div>
-      <div className="flex items-baseline justify-between px-6 pt-4 pb-1">
-        <div className="text-[10px] font-medium uppercase tracking-wide text-black/50">
-          {CATEGORY_LABEL[category]}
+      <div className="px-6 pt-4 pb-2">
+        <div className="flex items-baseline justify-between">
+          <div className="text-[10px] font-medium uppercase tracking-wide text-black/55">
+            {CATEGORY_LABEL[category]}
+          </div>
+          <div className="font-mono text-[11px] tabular-nums text-black/55">
+            {total.toLocaleString()}
+          </div>
         </div>
-        <div className="font-mono text-[11px] tabular-nums text-black/55">
-          {total.toLocaleString()}
+        <div className="mt-0.5 text-[11px] text-black/45">
+          {CATEGORY_BLURB[category]}
         </div>
       </div>
       <ul>
@@ -851,6 +943,11 @@ function CategoryGroup({
                   <span className="truncate font-mono text-[12.5px] text-black">
                     {c.name}
                   </span>
+                  {c.vendor && (
+                    <span className="font-mono text-[10px] text-black/45">
+                      {c.vendor}
+                    </span>
+                  )}
                   {c.verifiedCount > 0 && (
                     <span className="font-mono text-[10px] uppercase tracking-wide text-emerald-600">
                       verified
@@ -879,6 +976,122 @@ function CategoryGroup({
         })}
       </ul>
     </div>
+  );
+}
+
+// Hero-style widget: one big tile per intent showing total + top contributor.
+// The "user" tile leads because user-triggered retrievals = direct demand.
+function AiActivityByIntent({ crawlers }: { crawlers: CrawlerRow[] }) {
+  const byCat = new Map<Category, CrawlerRow[]>();
+  for (const c of crawlers) {
+    const cat = (c.category || "unknown") as Category;
+    const list = byCat.get(cat) ?? [];
+    list.push(c);
+    byCat.set(cat, list);
+  }
+  const cats: Category[] = ["user", "search", "training"];
+  return (
+    <div className="grid h-full grid-cols-1 gap-px overflow-hidden bg-black/8 sm:grid-cols-3">
+      {cats.map((cat) => {
+        const list = (byCat.get(cat) ?? []).slice().sort((a, b) => b.count - a.count);
+        const total = list.reduce((n, c) => n + c.count, 0);
+        const top = list[0];
+        return (
+          <div key={cat} className="flex h-full flex-col gap-3 bg-white p-5">
+            <div>
+              <div className="text-[10.5px] font-medium uppercase tracking-wide text-black/50">
+                {CATEGORY_LABEL[cat]}
+              </div>
+              <div className="mt-1.5 font-mono text-[22px] font-medium tabular-nums tracking-tight text-black">
+                {total.toLocaleString()}
+              </div>
+              <div className="mt-0.5 text-[11px] text-black/45">
+                {CATEGORY_BLURB[cat]}
+              </div>
+            </div>
+            {top ? (
+              <div className="mt-auto">
+                <div className="text-[10px] uppercase tracking-wide text-black/40">
+                  Top bot
+                </div>
+                <div className="mt-0.5 flex items-baseline gap-2">
+                  <span className="font-mono text-[13px] text-black">
+                    {top.name}
+                  </span>
+                  {top.vendor && (
+                    <span className="font-mono text-[10px] text-black/45">
+                      {top.vendor}
+                    </span>
+                  )}
+                  <span className="ml-auto font-mono text-[12px] tabular-nums text-black/65">
+                    {top.count.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-auto text-[11.5px] text-black/35">
+                None yet.
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function formatInterval(seconds: number): string {
+  if (!seconds || seconds <= 0) return "—";
+  if (seconds < 90) return `${Math.round(seconds)}s`;
+  const minutes = seconds / 60;
+  if (minutes < 90) return `${Math.round(minutes)}m`;
+  const hours = minutes / 60;
+  if (hours < 36) return `${Math.round(hours)}h`;
+  const days = hours / 24;
+  if (days < 60) return `${Math.round(days)}d`;
+  return `${Math.round(days / 7)}w`;
+}
+
+function RevisitVelocity({
+  data,
+}: {
+  data: {
+    url: string;
+    hits: number;
+    first: string | null;
+    last: string | null;
+    avgIntervalSeconds: number;
+  }[];
+}) {
+  return (
+    <ul className="divide-y divide-black/8">
+      {data.map((p) => (
+        <li
+          key={p.url}
+          className="grid grid-cols-[1fr_auto] items-center gap-4 px-6 py-2.5"
+        >
+          <div className="min-w-0">
+            <div className="flex items-baseline gap-2">
+              <span className="truncate font-mono text-[12.5px] text-black">
+                {pathOf(p.url)}
+              </span>
+              {p.last && (
+                <span className="ml-auto shrink-0 font-mono text-[10.5px] text-black/35">
+                  last {formatDistanceToNow(new Date(p.last), { addSuffix: true })}
+                </span>
+              )}
+            </div>
+            <div className="mt-0.5 text-[11px] text-black/55">
+              every <span className="font-mono text-black">{formatInterval(p.avgIntervalSeconds)}</span>
+              <span className="text-black/35"> · {p.hits.toLocaleString()} hits over 30d</span>
+            </div>
+          </div>
+          <div className="font-mono text-[13px] tabular-nums text-black">
+            {p.hits.toLocaleString()}
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 
