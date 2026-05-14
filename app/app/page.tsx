@@ -80,9 +80,11 @@ export default async function AppEntryPage() {
         )
     )[0]?.n ?? 0;
 
+  const totalEvents = aggregate.ai + aggregate.crawlers;
+  const hasEvents = totalEvents > 0;
   const stepsRemaining = [
     sites.length === 0,
-    aggregate.ai + aggregate.crawlers === 0,
+    totalEvents === 0,
     memberCount === 1 && pendingInvites === 0,
   ].filter(Boolean).length;
   const showChecklist = stepsRemaining > 0;
@@ -98,43 +100,43 @@ export default async function AppEntryPage() {
       />
 
       <div className="px-6 py-8 space-y-8">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-[-0.02em]">
-              Overview
-            </h1>
-            <p className="mt-1 text-[13px] text-black/50">
-              {session.activeOrg.name}
-            </p>
-          </div>
-        </div>
+        {hasEvents && (
+          <>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h1 className="text-2xl font-semibold tracking-[-0.02em]">
+                  Overview
+                </h1>
+                <p className="mt-1 text-[13px] text-black/50">
+                  {session.activeOrg.name}
+                </p>
+              </div>
+            </div>
 
-        <Stats
-          sites={sites.length}
-          ai={aggregate.ai}
-          crawlers={aggregate.crawlers}
-          members={memberCount}
-        />
+            <Stats
+              sites={sites.length}
+              ai={aggregate.ai}
+              crawlers={aggregate.crawlers}
+              members={memberCount}
+            />
+          </>
+        )}
 
         {showChecklist && (
           <Checklist
             sites={sites.length}
-            events={aggregate.ai + aggregate.crawlers}
+            events={totalEvents}
             members={memberCount}
             invites={pendingInvites}
             firstSiteId={sites[0]?.id}
           />
         )}
 
-        <Section
-          title="Sites"
-          right={`${sites.length} ${sites.length === 1 ? "site" : "sites"}`}
-        >
-          {sites.length === 0 ? (
-            <div className="px-6 py-8 text-center text-[13px] text-black/55">
-              No sites yet. Use the site picker in the nav to add one.
-            </div>
-          ) : (
+        {sites.length > 0 && (
+          <Section
+            title="Sites"
+            right={`${sites.length} ${sites.length === 1 ? "site" : "sites"}`}
+          >
             <ul className="divide-y divide-black/8">
               {sites.map((s) => {
                 const st = perSite[s.id];
@@ -177,8 +179,8 @@ export default async function AppEntryPage() {
                 );
               })}
             </ul>
-          )}
-        </Section>
+          </Section>
+        )}
       </div>
     </main>
   );
