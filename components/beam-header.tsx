@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { setActiveOrgAction, createOrgAction } from "@/app/app/org-actions";
-import { createSiteAction } from "@/app/app/actions";
+import { createSiteAction, deleteSiteAction } from "@/app/app/actions";
 
 type Org = { id: string; name: string; role: string };
 type SiteSummary = { id: string; domain: string };
@@ -163,6 +163,23 @@ function SiteSwitcher({
   activeSite: SiteSummary | null;
 }) {
   const label = activeSite ? activeSite.domain : "All sites";
+  // Right-click context menu for deleting a site. Holds the target site plus
+  // the cursor position the menu should render at.
+  const [menu, setMenu] = useState<{
+    id: string;
+    domain: string;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!menu) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenu(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [menu]);
 
   return (
     <Dropdown
@@ -199,6 +216,15 @@ function SiteSwitcher({
                   <Link
                     href={`/app/${s.id}`}
                     onClick={() => close()}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setMenu({
+                        id: s.id,
+                        domain: s.domain,
+                        x: Math.min(e.clientX, window.innerWidth - 190),
+                        y: Math.min(e.clientY, window.innerHeight - 110),
+                      });
+                    }}
                     className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left font-mono text-[12.5px] hover:bg-black/5 ${
                       activeSite?.id === s.id ? "text-black" : "text-black/70"
                     }`}
@@ -210,6 +236,48 @@ function SiteSwitcher({
               ))}
             </ul>
           )}
+
+          {menu && (
+            <>
+              {/* Backdrop: catches the next click/right-click to dismiss. */}
+              <div
+                className="fixed inset-0 z-30"
+                onClick={() => setMenu(null)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setMenu(null);
+                }}
+              />
+              <div
+                className="fixed z-40 min-w-[176px] rounded-lg border border-black/10 bg-white p-1 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.12)]"
+                style={{ top: menu.y, left: menu.x }}
+              >
+                <div className="max-w-[200px] truncate px-2 pt-1 pb-0.5 font-mono text-[11px] text-black/45">
+                  {menu.domain}
+                </div>
+                <form
+                  action={deleteSiteAction}
+                  onSubmit={() => {
+                    setMenu(null);
+                    close();
+                  }}
+                >
+                  <input type="hidden" name="siteId" value={menu.id} />
+                  <button
+                    type="submit"
+                    className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-[12.5px] text-red-600 hover:bg-red-50"
+                  >
+                    <Trash />
+                    Delete site
+                  </button>
+                </form>
+                <div className="px-2 pt-0.5 pb-1 text-[10.5px] text-black/35">
+                  Removes all its events &amp; dashboards.
+                </div>
+              </div>
+            </>
+          )}
+
           <div className="my-1 h-px bg-black/8" />
           <form action={createSiteAction} className="p-1">
             <div className="px-1 pb-1 text-[10px] font-medium uppercase tracking-wide text-black/40">
@@ -341,6 +409,27 @@ function Check() {
         d="M2 5 L4.2 7 L8 3"
         stroke="currentColor"
         strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function Trash() {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 12 12"
+      fill="none"
+      className="text-red-600"
+      aria-hidden
+    >
+      <path
+        d="M2.5 3.5 H9.5 M4.75 3.5 V2.5 H7.25 V3.5 M3.25 3.5 L3.75 10 H8.25 L8.75 3.5"
+        stroke="currentColor"
+        strokeWidth="1.1"
         strokeLinecap="round"
         strokeLinejoin="round"
       />

@@ -81,6 +81,32 @@ export async function createSiteAction(formData: FormData) {
   redirect(`/app/${newSite.id}`);
 }
 
+// Delete a site and everything under it. The `dashboard` and `event` tables
+// reference site.id with onDelete: "cascade", so the child rows go with it.
+export async function deleteSiteAction(formData: FormData) {
+  const session = await ensureBeamSession();
+  if (!session) redirect("/sign-in");
+
+  const siteId = String(formData.get("siteId") || "");
+  if (!siteId) redirect("/app");
+
+  const rows = await db
+    .select()
+    .from(site)
+    .where(eq(site.id, siteId))
+    .limit(1);
+  const s = rows[0];
+  if (!s) redirect("/app");
+
+  const member = await isMemberOfOrg(session.user.id, s.orgId);
+  if (!member) redirect("/app");
+
+  await db.delete(site).where(eq(site.id, s.id));
+
+  revalidatePath("/app");
+  redirect("/app");
+}
+
 // Re-run detection on demand (called when the user clicks "Re-detect" or when
 // the dashboard loads a site with stack=null).
 export async function redetectStackAction(formData: FormData) {
@@ -105,6 +131,32 @@ export async function redetectStackAction(formData: FormData) {
       stack: stack ?? "unknown",
       stackDetectedAt: new Date(),
     })
+    .where(eq(site.id, s.id));
+
+  redirect(`/app/${s.id}`);
+}
+
+// Clear a previously detected platform. Puts the site back into the
+// "not yet checked" state (stack = null) so the user can re-run detection
+// from scratch — useful when detection guessed wrong.
+export async function resetStackAction(formData: FormData) {
+  const session = await ensureBeamSession();
+  if (!session) redirect("/sign-in");
+
+  const siteId = String(formData.get("siteId") || "");
+  if (!siteId) redirect("/app");
+
+  const rows = await db
+    .select()
+    .from(site)
+    .where(eq(site.id, siteId))
+    .limit(1);
+  const s = rows[0];
+  if (!s || s.orgId !== session.activeOrgId) redirect("/app");
+
+  await db
+    .update(site)
+    .set({ stack: null, stackDetectedAt: null })
     .where(eq(site.id, s.id));
 
   redirect(`/app/${s.id}`);

@@ -2,7 +2,11 @@
 
 import { useState, useTransition } from "react";
 import type { SnippetTab } from "@/lib/snippets";
-import { redetectStackAction, sendTestPingAction } from "@/app/app/actions";
+import {
+  redetectStackAction,
+  resetStackAction,
+  sendTestPingAction,
+} from "@/app/app/actions";
 
 type DetectedInfo = {
   label: string;
@@ -29,9 +33,20 @@ export function InstallCard({
         <div className="flex items-baseline gap-3">
           <h2 className="text-[13px] font-medium text-black">Install</h2>
           {detected ? (
-            <span className="font-mono text-[11px] tabular-nums text-black/55">
-              detected: <span className="text-black">{detected.label}</span>
-            </span>
+            <>
+              <span className="font-mono text-[11px] tabular-nums text-black/55">
+                detected: <span className="text-black">{detected.label}</span>
+              </span>
+              <form action={resetStackAction}>
+                <input type="hidden" name="siteId" value={siteId} />
+                <button
+                  type="submit"
+                  className="font-mono text-[11px] text-black/35 hover:text-black"
+                >
+                  reset
+                </button>
+              </form>
+            </>
           ) : (
             <form action={redetectStackAction}>
               <input type="hidden" name="siteId" value={siteId} />
