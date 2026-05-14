@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Beam",
+  title: "Ocholens",
   description: "See exactly when AI sends people to your site.",
 };
 

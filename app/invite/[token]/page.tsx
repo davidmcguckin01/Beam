@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { beamInvite, beamMembership, beamOrg } from "@/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import {
-  ensureBeamSession,
+  ensureOcholensSession,
   isMemberOfOrg,
   ACTIVE_ORG_COOKIE_NAME,
 } from "@/lib/beam-auth";
@@ -45,7 +45,7 @@ export default async function InviteAcceptPage({
     return <Notice title="Invite expired" body="Ask for a new invite link." />;
   }
 
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) {
     redirect(`/sign-in?redirect_url=${encodeURIComponent(`/invite/${token}`)}`);
   }
@@ -68,7 +68,7 @@ export default async function InviteAcceptPage({
     <main className="min-h-screen bg-white text-black antialiased">
       <div className="mx-auto flex min-h-screen max-w-md flex-col px-6 py-10">
         <Link href="/" className="text-[15px] font-semibold tracking-tight">
-          Beam
+          Ocholens
         </Link>
         <div className="flex flex-1 flex-col justify-center">
           <h1 className="text-2xl font-semibold tracking-tight">
@@ -110,7 +110,7 @@ function Notice({ title, body }: { title: string; body: string }) {
           href="/app"
           className="mt-6 inline-flex h-10 items-center rounded-md border border-black/10 px-4 text-sm font-medium text-black hover:bg-black/3"
         >
-          Go to Beam
+          Go to Ocholens
         </Link>
       </div>
     </main>

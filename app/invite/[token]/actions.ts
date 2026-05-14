@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { beamInvite, beamMembership } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import {
-  ensureBeamSession,
+  ensureOcholensSession,
   isMemberOfOrg,
   ACTIVE_ORG_COOKIE_NAME,
 } from "@/lib/beam-auth";
@@ -15,7 +15,7 @@ export async function acceptInviteAction(formData: FormData) {
   const token = String(formData.get("token") || "");
   if (!token) redirect("/app");
 
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) {
     redirect(`/sign-in?redirect_url=${encodeURIComponent(`/invite/${token}`)}`);
   }

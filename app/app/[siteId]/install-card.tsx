@@ -52,7 +52,7 @@ export function InstallCard({
       await navigator.clipboard.writeText(promptTab.body);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
-    } catch {}
+    } catch { }
   };
 
   return (
@@ -93,11 +93,10 @@ export function InstallCard({
           type="button"
           onClick={copyPrompt}
           disabled={!promptTab}
-          className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-[13px] font-medium transition-colors disabled:opacity-50 ${
-            copied
+          className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-[13px] font-medium transition-colors disabled:opacity-50 ${copied
               ? "bg-emerald-600 text-white"
               : "bg-black text-white hover:bg-black/85"
-          }`}
+            }`}
         >
           {copied ? <CheckIcon /> : <ClipboardIcon />}
           {copied
@@ -144,11 +143,10 @@ export function InstallCard({
                 key={s.key}
                 type="button"
                 onClick={() => setActive(s.key)}
-                className={`shrink-0 rounded px-2.5 py-1 text-[12px] transition-colors ${
-                  s.key === active
+                className={`shrink-0 rounded px-2.5 py-1 text-[12px] transition-colors ${s.key === active
                     ? "bg-black/8 text-black"
                     : "text-black/55 hover:bg-black/3 hover:text-black"
-                }`}
+                  }`}
               >
                 {s.label}
               </button>
@@ -196,7 +194,7 @@ function TestPingButton({ siteId }: { siteId: string }) {
 }
 
 // The primary "I've installed it" confirmation. Actually fetches the site
-// and scans its HTML for the Beam snippet (keyed to this site's apiKey) —
+// and scans its HTML for the Ocholens snippet (keyed to this site's apiKey) —
 // real verification, not a synthetic ping. The result is shown inline; the
 // button becomes "Check again" so the user can re-run after fixing things.
 function VerifyInstall({
@@ -219,7 +217,7 @@ function VerifyInstall({
         <div className="mb-3 rounded-lg border border-emerald-600/25 bg-emerald-50 px-3.5 py-3 text-center">
           <div className="flex items-center justify-center gap-1.5 text-[12.5px] font-medium text-emerald-700">
             <CheckIcon />
-            Beam is live on {domain}
+            Ocholens is live on {domain}
           </div>
           <p className="mt-1 text-[11.5px] leading-snug text-emerald-700/80">
             Found the snippet on your homepage. Now waiting on the first real
@@ -231,7 +229,7 @@ function VerifyInstall({
       {result?.status === "not-found" && (
         <div className="mb-3 rounded-lg border border-amber-600/30 bg-amber-50 px-3.5 py-3 text-center">
           <div className="text-[12.5px] font-medium text-amber-800">
-            Couldn&rsquo;t find the Beam snippet on {domain}
+            Couldn&rsquo;t find the Ocholens snippet on {domain}
           </div>
           <p className="mt-1 text-[11.5px] leading-snug text-amber-800/80">
             We loaded your homepage but the install snippet wasn&rsquo;t in the
@@ -394,7 +392,7 @@ function CodeBlock({ body, lang }: { body: string; lang: string }) {
       await navigator.clipboard.writeText(body);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch {}
+    } catch { }
   };
   return (
     <div className="relative overflow-hidden rounded-md border border-black/10 bg-white">

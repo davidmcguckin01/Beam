@@ -2,8 +2,8 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { beamUser, beamMembership, beamInvite, site } from "@/db/schema";
 import { and, eq, isNull, desc } from "drizzle-orm";
-import { ensureBeamSession, getMembership } from "@/lib/beam-auth";
-import { BeamHeader } from "@/components/beam-header";
+import { ensureOcholensSession, getMembership } from "@/lib/beam-auth";
+import { OcholensHeader } from "@/components/beam-header";
 import {
   inviteAction,
   revokeInviteAction,
@@ -19,7 +19,7 @@ export default async function SettingsPage({
 }: {
   searchParams: Promise<{ ok?: string; err?: string }>;
 }) {
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) redirect("/sign-in");
 
   const sp = await searchParams;
@@ -59,7 +59,7 @@ export default async function SettingsPage({
 
   return (
     <main className="min-h-screen bg-[#fafafa] text-black antialiased">
-      <BeamHeader
+      <OcholensHeader
         orgs={session.orgs}
         activeOrg={session.activeOrg}
         sites={orgSites}

@@ -62,11 +62,11 @@ export function describeStack(stack: Stack): StackInfo {
 }
 
 const FETCH_TIMEOUT_MS = 5000;
-const UA = "BeamBot/1.0 (+https://beam.dev/bot)";
+const UA = "OcholensBot/1.0 (+https://beam.dev/bot)";
 
 // Try HTTPS first, fall back to HTTP. Some hobby sites are HTTP-only.
 async function fetchHome(
-  domain: string
+  domain: string,
 ): Promise<{ html: string; headers: Headers } | null> {
   for (const proto of ["https", "http"]) {
     try {
@@ -122,7 +122,7 @@ export async function detectStack(domain: string): Promise<Stack> {
 
   // ── Generator meta tag ────────────────────────────────────────────────────
   const generator = html.match(
-    /<meta\s+name=["']generator["']\s+content=["']([^"']+)["']/i
+    /<meta\s+name=["']generator["']\s+content=["']([^"']+)["']/i,
   );
   if (generator) {
     const g = generator[1].toLowerCase();

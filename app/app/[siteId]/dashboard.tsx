@@ -31,7 +31,7 @@ import {
   CartesianGrid,
   ResponsiveContainer,
 } from "recharts";
-import { BeamHeader } from "@/components/beam-header";
+import { OcholensHeader } from "@/components/beam-header";
 import { DashboardTabs } from "./dashboard-tabs";
 import { InstallCard } from "./install-card";
 import type { SnippetTab } from "@/lib/snippets";
@@ -543,7 +543,7 @@ export function Dashboard({
 
   return (
     <main className="min-h-screen bg-[#fafafa] text-black antialiased">
-      <BeamHeader
+      <OcholensHeader
         orgs={session.orgs}
         activeOrg={session.activeOrg}
         sites={session.sites}
@@ -587,11 +587,10 @@ export function Dashboard({
                   <button
                     type="button"
                     onClick={() => setLive((v) => !v)}
-                    className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[12px] transition-colors ${
-                      live
+                    className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[12px] transition-colors ${live
                         ? "border-emerald-500/40 bg-emerald-50 text-emerald-700"
                         : "border-black/10 bg-white text-black/70 hover:bg-black/3 hover:text-black"
-                    }`}
+                      }`}
                     title={
                       live
                         ? "Live: auto-refreshing every 30s"
@@ -599,9 +598,8 @@ export function Dashboard({
                     }
                   >
                     <span
-                      className={`inline-block h-1.5 w-1.5 rounded-full ${
-                        live ? "bg-emerald-500 animate-pulse" : "bg-black/30"
-                      }`}
+                      className={`inline-block h-1.5 w-1.5 rounded-full ${live ? "bg-emerald-500 animate-pulse" : "bg-black/30"
+                        }`}
                     />
                     Live
                   </button>
@@ -678,37 +676,36 @@ export function Dashboard({
                   onLayoutChange={onGridChange}
                 >
                   {activeLayout.map((item) => (
-                <div
-                  key={item.i}
-                  className={`relative ${
-                    editMode
-                      ? "ring-2 ring-black/15 ring-offset-2 ring-offset-[#fafafa] rounded-lg"
-                      : ""
-                  }`}
-                >
-                  <div className="h-full min-h-0 overflow-hidden">
-                    {renderWidget(item.i)}
-                  </div>
-                  {editMode && (
-                    <button
-                      type="button"
-                      onClick={() => hideWidget(item.i)}
-                      className="no-drag absolute right-2 top-2 z-10 inline-flex h-6 w-6 items-center justify-center rounded-md border border-black/10 bg-white text-black/55 shadow-sm hover:bg-black/5 hover:text-black"
-                      aria-label="Hide widget"
-                      title="Hide widget"
+                    <div
+                      key={item.i}
+                      className={`relative ${editMode
+                          ? "ring-2 ring-black/15 ring-offset-2 ring-offset-[#fafafa] rounded-lg"
+                          : ""
+                        }`}
                     >
-                      <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden>
-                        <path
-                          d="M2 2 L9 9 M9 2 L2 9"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              ))}
+                      <div className="h-full min-h-0 overflow-hidden">
+                        {renderWidget(item.i)}
+                      </div>
+                      {editMode && (
+                        <button
+                          type="button"
+                          onClick={() => hideWidget(item.i)}
+                          className="no-drag absolute right-2 top-2 z-10 inline-flex h-6 w-6 items-center justify-center rounded-md border border-black/10 bg-white text-black/55 shadow-sm hover:bg-black/5 hover:text-black"
+                          aria-label="Hide widget"
+                          title="Hide widget"
+                        >
+                          <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden>
+                            <path
+                              d="M2 2 L9 9 M9 2 L2 9"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </GridLayout>
               )}
             </div>
@@ -980,11 +977,10 @@ function RecentEventsList({
                 {formatDistanceToNow(new Date(e.ts), { addSuffix: false })}
               </span>
               <span
-                className={`inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wide ${
-                  e.kind === "crawler"
+                className={`inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wide ${e.kind === "crawler"
                     ? "bg-amber-50 text-amber-900"
                     : "bg-black/5 text-black/65"
-                }`}
+                  }`}
               >
                 {RECENT_KIND_LABEL[e.kind]}
               </span>
@@ -1092,11 +1088,10 @@ function EventDetailModal({
           <div>
             <div className="flex items-center gap-2">
               <span
-                className={`inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wide ${
-                  event.kind === "crawler"
+                className={`inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wide ${event.kind === "crawler"
                     ? "bg-amber-50 text-amber-900"
                     : "bg-black/5 text-black/65"
-                }`}
+                  }`}
               >
                 {RECENT_KIND_LABEL[event.kind]}
               </span>
@@ -1186,9 +1181,8 @@ function DetailField({
         {label}
       </dt>
       <dd
-        className={`${mono ? "font-mono" : ""} ${
-          wrap ? "break-all" : "truncate"
-        } text-black`}
+        className={`${mono ? "font-mono" : ""} ${wrap ? "break-all" : "truncate"
+          } text-black`}
       >
         {value}
       </dd>

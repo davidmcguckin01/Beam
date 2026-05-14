@@ -5,14 +5,15 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { site, event, dashboard } from "@/db/schema";
 import { eq, and, asc, sql } from "drizzle-orm";
-import { ensureBeamSession, isMemberOfOrg } from "@/lib/beam-auth";
+import { ensureOcholensSession, isMemberOfOrg } from "@/lib/beam-auth";
 import { detectStack } from "@/lib/stack-detect";
 import { TEST_PING_SOURCE } from "@/lib/test-ping";
 import { verifyInstall, type VerifyResult } from "@/lib/verify-install";
 import { resolveLayout } from "@/lib/dashboard-widgets";
 
 function generateApiKey(): string {
-  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const alphabet =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
   let out = "";
@@ -44,7 +45,7 @@ async function detectWithTimeout(domain: string) {
 }
 
 export async function createSiteAction(formData: FormData) {
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) redirect("/sign-in");
 
   const raw = String(formData.get("domain") || "");
@@ -85,7 +86,7 @@ export async function createSiteAction(formData: FormData) {
 // Delete a site and everything under it. The `dashboard` and `event` tables
 // reference site.id with onDelete: "cascade", so the child rows go with it.
 export async function deleteSiteAction(formData: FormData) {
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) redirect("/sign-in");
 
   const siteId = String(formData.get("siteId") || "");
@@ -96,11 +97,7 @@ export async function deleteSiteAction(formData: FormData) {
   // switcher in place so its dropdown stays open.
   const activeSiteId = String(formData.get("activeSiteId") || "");
 
-  const rows = await db
-    .select()
-    .from(site)
-    .where(eq(site.id, siteId))
-    .limit(1);
+  const rows = await db.select().from(site).where(eq(site.id, siteId)).limit(1);
   const s = rows[0];
   if (!s) redirect("/app");
 
@@ -123,7 +120,7 @@ export async function deleteSiteAction(formData: FormData) {
 // is cleared — it was detected against the old domain and may now be wrong;
 // the install card will offer to re-detect.
 export async function updateSiteDomainAction(formData: FormData) {
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) redirect("/sign-in");
 
   const siteId = String(formData.get("siteId") || "");
@@ -131,11 +128,7 @@ export async function updateSiteDomainAction(formData: FormData) {
 
   const domain = cleanDomain(String(formData.get("domain") || ""));
 
-  const rows = await db
-    .select()
-    .from(site)
-    .where(eq(site.id, siteId))
-    .limit(1);
+  const rows = await db.select().from(site).where(eq(site.id, siteId)).limit(1);
   const s = rows[0];
   if (!s) redirect("/app");
 
@@ -157,17 +150,13 @@ export async function updateSiteDomainAction(formData: FormData) {
 // Re-run detection on demand (called when the user clicks "Re-detect" or when
 // the dashboard loads a site with stack=null).
 export async function redetectStackAction(formData: FormData) {
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) redirect("/sign-in");
 
   const siteId = String(formData.get("siteId") || "");
   if (!siteId) redirect("/app");
 
-  const rows = await db
-    .select()
-    .from(site)
-    .where(eq(site.id, siteId))
-    .limit(1);
+  const rows = await db.select().from(site).where(eq(site.id, siteId)).limit(1);
   const s = rows[0];
   if (!s || s.orgId !== session.activeOrgId) redirect("/app");
 
@@ -187,17 +176,13 @@ export async function redetectStackAction(formData: FormData) {
 // "not yet checked" state (stack = null) so the user can re-run detection
 // from scratch — useful when detection guessed wrong.
 export async function resetStackAction(formData: FormData) {
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) redirect("/sign-in");
 
   const siteId = String(formData.get("siteId") || "");
   if (!siteId) redirect("/app");
 
-  const rows = await db
-    .select()
-    .from(site)
-    .where(eq(site.id, siteId))
-    .limit(1);
+  const rows = await db.select().from(site).where(eq(site.id, siteId)).limit(1);
   const s = rows[0];
   if (!s || s.orgId !== session.activeOrgId) redirect("/app");
 
@@ -212,17 +197,13 @@ export async function resetStackAction(formData: FormData) {
 // Writes a synthetic event so the user can verify the dashboard pipeline
 // without having to visit their site from an external referrer.
 export async function sendTestPingAction(formData: FormData) {
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) redirect("/sign-in");
 
   const siteId = String(formData.get("siteId") || "");
   if (!siteId) redirect("/app");
 
-  const rows = await db
-    .select()
-    .from(site)
-    .where(eq(site.id, siteId))
-    .limit(1);
+  const rows = await db.select().from(site).where(eq(site.id, siteId)).limit(1);
   const s = rows[0];
   if (!s) redirect("/app");
 
@@ -244,25 +225,21 @@ export async function sendTestPingAction(formData: FormData) {
 }
 
 // Real install verification — fetches the customer's homepage and checks the
-// HTML for the Beam snippet keyed to this site's apiKey. Unlike
-// sendTestPingAction (which writes a synthetic event and only proves Beam's
+// HTML for the Ocholens snippet keyed to this site's apiKey. Unlike
+// sendTestPingAction (which writes a synthetic event and only proves Ocholens's
 // own pipeline), this confirms the script is actually live on the site.
 // Returns its result to the caller via useActionState — no redirect.
 export async function verifyInstallAction(
   _prev: VerifyResult | null,
-  formData: FormData
+  formData: FormData,
 ): Promise<VerifyResult> {
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) return { status: "unreachable" };
 
   const siteId = String(formData.get("siteId") || "");
   if (!siteId) return { status: "unreachable" };
 
-  const rows = await db
-    .select()
-    .from(site)
-    .where(eq(site.id, siteId))
-    .limit(1);
+  const rows = await db.select().from(site).where(eq(site.id, siteId)).limit(1);
   const s = rows[0];
   if (!s) return { status: "unreachable" };
 
@@ -276,8 +253,11 @@ export async function verifyInstallAction(
 // user is a member of the site's org. Used by every dashboard server action.
 async function loadDashboardForUser(
   userId: string,
-  dashboardId: string
-): Promise<{ d: typeof dashboard.$inferSelect; s: typeof site.$inferSelect } | null> {
+  dashboardId: string,
+): Promise<{
+  d: typeof dashboard.$inferSelect;
+  s: typeof site.$inferSelect;
+} | null> {
   const rows = await db
     .select({ d: dashboard, s: site })
     .from(dashboard)
@@ -295,7 +275,7 @@ async function loadDashboardForUser(
 // new layout as a JSON-encoded form field. resolveLayout drops unknown keys
 // and malformed items so we never store garbage.
 export async function saveDashboardLayoutAction(formData: FormData) {
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) redirect("/sign-in");
 
   const dashboardId = String(formData.get("dashboardId") || "");
@@ -325,18 +305,14 @@ export async function saveDashboardLayoutAction(formData: FormData) {
 // Create a new dashboard tab for a site. Positioned at the end of the
 // existing tabs.
 export async function createDashboardAction(formData: FormData) {
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) redirect("/sign-in");
 
   const siteId = String(formData.get("siteId") || "");
   const rawName = String(formData.get("name") || "").trim();
   const name = rawName.slice(0, 60) || "Untitled";
 
-  const rows = await db
-    .select()
-    .from(site)
-    .where(eq(site.id, siteId))
-    .limit(1);
+  const rows = await db.select().from(site).where(eq(site.id, siteId)).limit(1);
   const s = rows[0];
   if (!s) redirect("/app");
 
@@ -365,7 +341,7 @@ export async function createDashboardAction(formData: FormData) {
 }
 
 export async function renameDashboardAction(formData: FormData) {
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) redirect("/sign-in");
 
   const dashboardId = String(formData.get("dashboardId") || "");
@@ -389,7 +365,7 @@ export async function renameDashboardAction(formData: FormData) {
 // Delete a dashboard. Refuses to delete the last remaining dashboard on a
 // site so the user is never left with no tabs.
 export async function deleteDashboardAction(formData: FormData) {
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) redirect("/sign-in");
 
   const dashboardId = String(formData.get("dashboardId") || "");
@@ -424,23 +400,21 @@ export async function deleteDashboardAction(formData: FormData) {
 // display order. Anything not in the list keeps its existing position
 // (preserves siblings on different sites).
 export async function reorderDashboardsAction(formData: FormData) {
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) redirect("/sign-in");
 
   const siteId = String(formData.get("siteId") || "");
   let ids: string[];
   try {
     const parsed = JSON.parse(String(formData.get("order") || "[]"));
-    ids = Array.isArray(parsed) ? parsed.filter((v) => typeof v === "string") : [];
+    ids = Array.isArray(parsed)
+      ? parsed.filter((v) => typeof v === "string")
+      : [];
   } catch {
     ids = [];
   }
 
-  const rows = await db
-    .select()
-    .from(site)
-    .where(eq(site.id, siteId))
-    .limit(1);
+  const rows = await db.select().from(site).where(eq(site.id, siteId)).limit(1);
   const s = rows[0];
   if (!s) redirect("/app");
 
@@ -462,8 +436,8 @@ export async function reorderDashboardsAction(formData: FormData) {
         db
           .update(dashboard)
           .set({ position: i, updatedAt: new Date() })
-          .where(and(eq(dashboard.id, id), eq(dashboard.siteId, s.id)))
-      )
+          .where(and(eq(dashboard.id, id), eq(dashboard.siteId, s.id))),
+      ),
   );
 
   revalidatePath(`/app/${s.id}`);

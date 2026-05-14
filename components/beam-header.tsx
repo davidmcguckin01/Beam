@@ -24,7 +24,7 @@ type Props = {
   current?: "overview" | "settings" | null;
 };
 
-export function BeamHeader({
+export function OcholensHeader({
   orgs,
   activeOrg,
   sites = [],
@@ -38,10 +38,10 @@ export function BeamHeader({
           <Link
             href="/app"
             className="inline-flex shrink-0 items-center gap-1.5 font-semibold text-black"
-            aria-label="Beam"
+            aria-label="Ocholens"
           >
             <Logo />
-            <span className="hidden sm:inline">Beam</span>
+            <span className="hidden sm:inline">Ocholens</span>
           </Link>
           <span className="hidden sm:inline">
             <Slash />
@@ -93,9 +93,8 @@ function Tab({
   return (
     <Link
       href={href}
-      className={`rounded-md px-2 py-1 text-[12.5px] transition-colors sm:px-2.5 sm:text-[13px] ${
-        active ? "text-black" : "text-black/50 hover:text-black"
-      }`}
+      className={`rounded-md px-2 py-1 text-[12.5px] transition-colors sm:px-2.5 sm:text-[13px] ${active ? "text-black" : "text-black/50 hover:text-black"
+        }`}
     >
       {children}
     </Link>
@@ -125,9 +124,8 @@ function OrgSwitcher({ orgs, activeOrg }: { orgs: Org[]; activeOrg: Org }) {
               <button
                 type="submit"
                 onClick={() => close()}
-                className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-black/5 ${
-                  o.id === activeOrg.id ? "text-black" : "text-black/70"
-                }`}
+                className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-black/5 ${o.id === activeOrg.id ? "text-black" : "text-black/70"
+                  }`}
               >
                 <span className="truncate">{o.name}</span>
                 {o.id === activeOrg.id && <Check />}
@@ -204,11 +202,10 @@ function SiteSwitcher({
       trigger={(open) => (
         <>
           <span
-            className={`truncate ${
-              activeSite
+            className={`truncate ${activeSite
                 ? "font-mono text-[12.5px] text-black"
                 : "text-black/70"
-            }`}
+              }`}
           >
             {label}
           </span>
@@ -244,9 +241,8 @@ function SiteSwitcher({
                         y: Math.min(e.clientY, window.innerHeight - 170),
                       });
                     }}
-                    className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left font-mono text-[12.5px] hover:bg-black/5 ${
-                      activeSite?.id === s.id ? "text-black" : "text-black/70"
-                    }`}
+                    className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left font-mono text-[12.5px] hover:bg-black/5 ${activeSite?.id === s.id ? "text-black" : "text-black/70"
+                      }`}
                   >
                     <span className="truncate">{s.domain}</span>
                     {activeSite?.id === s.id && <Check />}
@@ -395,9 +391,8 @@ function Dropdown({
       </button>
       {open && (
         <div
-          className={`absolute left-0 top-full z-20 mt-1 rounded-lg border border-black/10 bg-white p-1 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.12)] ${
-            menuClassName ?? ""
-          }`}
+          className={`absolute left-0 top-full z-20 mt-1 rounded-lg border border-black/10 bg-white p-1 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.12)] ${menuClassName ?? ""
+            }`}
           role="menu"
         >
           {children(() => setOpen(false))}

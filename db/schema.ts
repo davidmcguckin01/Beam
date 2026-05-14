@@ -29,7 +29,7 @@ export const users = pgTable(
   },
   (table) => ({
     clerkIdIdx: index("clerk_id_idx").on(table.clerkId),
-  })
+  }),
 );
 
 // User onboarding profiles
@@ -54,7 +54,7 @@ export const userOnboardingProfiles = pgTable(
   },
   (table) => ({
     userIdIdx: index("user_onboarding_profile_user_id_idx").on(table.userId),
-  })
+  }),
 );
 
 // Workspaces (linked to Clerk organizations)
@@ -78,10 +78,10 @@ export const workspaces = pgTable(
   },
   (table) => ({
     clerkOrgIdIdx: index("workspace_clerk_org_id_idx").on(
-      table.clerkOrganizationId
+      table.clerkOrganizationId,
     ),
     slugIdx: index("workspace_slug_idx").on(table.slug),
-  })
+  }),
 );
 
 // Workspace members (users in workspaces with roles)
@@ -103,14 +103,14 @@ export const workspaceMembers = pgTable(
   },
   (table) => ({
     workspaceIdIdx: index("workspace_member_workspace_id_idx").on(
-      table.workspaceId
+      table.workspaceId,
     ),
     userIdIdx: index("workspace_member_user_id_idx").on(table.userId),
     workspaceUserIdx: index("workspace_member_workspace_user_idx").on(
       table.workspaceId,
-      table.userId
+      table.userId,
     ),
-  })
+  }),
 );
 
 export const customers = pgTable(
@@ -143,7 +143,7 @@ export const customers = pgTable(
     workspaceIdIdx: index("customer_workspace_id_idx").on(table.workspaceId),
     userIdIdx: index("customer_user_id_idx").on(table.userId),
     nameIdx: index("customer_name_idx").on(table.name),
-  })
+  }),
 );
 
 // Companies table for deduplicated company records
@@ -186,9 +186,9 @@ export const companies = pgTable(
     // Unique constraint: one company per workspace + domain combination
     workspaceDomainIdx: index("company_workspace_domain_idx").on(
       table.workspaceId,
-      table.domain
+      table.domain,
     ),
-  })
+  }),
 );
 
 // People table for deduplicated person records
@@ -228,9 +228,9 @@ export const people = pgTable(
     // Unique constraint: one person per workspace + email combination
     workspaceEmailIdx: index("person_workspace_email_idx").on(
       table.workspaceId,
-      table.email
+      table.email,
     ),
-  })
+  }),
 );
 
 export const feedbacks = pgTable(
@@ -251,7 +251,7 @@ export const feedbacks = pgTable(
       () => feedbackPages.id,
       {
         onDelete: "set null",
-      }
+      },
     ),
     // Link to enriched company and person records
     companyId: text("company_id").references(() => companies.id, {
@@ -296,7 +296,7 @@ export const feedbacks = pgTable(
     valueScoreIdx: index("feedback_value_score_idx").on(table.valueScore),
     icpScoreIdx: index("feedback_icp_score_idx").on(table.icpScore),
     sentimentIdx: index("feedback_sentiment_idx").on(table.sentiment),
-  })
+  }),
 );
 
 export const tasks = pgTable(
@@ -310,7 +310,7 @@ export const tasks = pgTable(
       .references(() => feedbacks.id, { onDelete: "cascade" }),
     feedbackSubmissionId: text("feedback_submission_id").references(
       () => feedbackSubmissions.id,
-      { onDelete: "set null" }
+      { onDelete: "set null" },
     ),
     title: text("title").notNull(),
     description: text("description").notNull(),
@@ -332,14 +332,14 @@ export const tasks = pgTable(
   (table) => ({
     feedbackIdIdx: index("feedback_id_idx").on(table.feedbackId),
     feedbackSubmissionIdIdx: index("feedback_submission_id_idx").on(
-      table.feedbackSubmissionId
+      table.feedbackSubmissionId,
     ),
     categoryIdx: index("task_category_idx").on(table.category),
     statusIdx: index("task_status_idx").on(table.status),
     impactEstimateIdx: index("task_impact_estimate_idx").on(
-      table.impactEstimate
+      table.impactEstimate,
     ),
-  })
+  }),
 );
 
 export const taskLogs = pgTable(
@@ -360,7 +360,7 @@ export const taskLogs = pgTable(
   (table) => ({
     taskIdIdx: index("task_log_id_idx").on(table.taskId),
     createdAtIdx: index("task_log_created_at_idx").on(table.createdAt),
-  })
+  }),
 );
 
 export const workspaceMembersRelations = relations(
@@ -374,7 +374,7 @@ export const workspaceMembersRelations = relations(
       fields: [workspaceMembers.userId],
       references: [users.id],
     }),
-  })
+  }),
 );
 
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -467,7 +467,7 @@ export const userOnboardingProfilesRelations = relations(
       fields: [userOnboardingProfiles.userId],
       references: [users.id],
     }),
-  })
+  }),
 );
 
 // Feedback Pages (customizable public feedback forms)
@@ -494,11 +494,11 @@ export const feedbackPages = pgTable(
   },
   (table) => ({
     workspaceIdIdx: index("feedback_page_workspace_id_idx").on(
-      table.workspaceId
+      table.workspaceId,
     ),
     userIdIdx: index("feedback_page_user_id_idx").on(table.userId),
     slugIdx: index("feedback_page_slug_idx").on(table.slug),
-  })
+  }),
 );
 
 // Feedback Submissions (from public feedback pages)
@@ -570,15 +570,15 @@ export const feedbackSubmissions = pgTable(
   },
   (table) => ({
     feedbackPageIdIdx: index("feedback_submission_page_id_idx").on(
-      table.feedbackPageId
+      table.feedbackPageId,
     ),
     workspaceIdIdx: index("feedback_submission_workspace_id_idx").on(
-      table.workspaceId
+      table.workspaceId,
     ),
     createdAtIdx: index("feedback_submission_created_at_idx").on(
-      table.createdAt
+      table.createdAt,
     ),
-  })
+  }),
 );
 
 // Feedback Page Views (analytics for page visits)
@@ -643,18 +643,18 @@ export const feedbackPageViews = pgTable(
   },
   (table) => ({
     feedbackPageIdIdx: index("feedback_page_view_page_id_idx").on(
-      table.feedbackPageId
+      table.feedbackPageId,
     ),
     workspaceIdIdx: index("feedback_page_view_workspace_id_idx").on(
-      table.workspaceId
+      table.workspaceId,
     ),
     createdAtIdx: index("feedback_page_view_created_at_idx").on(
-      table.createdAt
+      table.createdAt,
     ),
     sessionIdIdx: index("feedback_page_view_session_id_idx").on(
-      table.sessionId
+      table.sessionId,
     ),
-  })
+  }),
 );
 
 // Form Config Versions (version history for form builder)
@@ -674,12 +674,12 @@ export const formConfigVersions = pgTable(
   },
   (table) => ({
     feedbackPageIdIdx: index("form_config_version_page_id_idx").on(
-      table.feedbackPageId
+      table.feedbackPageId,
     ),
     createdAtIdx: index("form_config_version_created_at_idx").on(
-      table.createdAt
+      table.createdAt,
     ),
-  })
+  }),
 );
 
 // Credit transactions (for IP enrichment credit packs)
@@ -698,9 +698,13 @@ export const creditTransactions = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({
-    workspaceIdIdx: index("credit_transaction_workspace_id_idx").on(table.workspaceId),
-    createdAtIdx: index("credit_transaction_created_at_idx").on(table.createdAt),
-  })
+    workspaceIdIdx: index("credit_transaction_workspace_id_idx").on(
+      table.workspaceId,
+    ),
+    createdAtIdx: index("credit_transaction_created_at_idx").on(
+      table.createdAt,
+    ),
+  }),
 );
 
 // Relations for feedback pages
@@ -719,7 +723,7 @@ export const feedbackPagesRelations = relations(
     views: many(feedbackPageViews),
     feedbacks: many(feedbacks),
     configVersions: many(formConfigVersions),
-  })
+  }),
 );
 
 export const formConfigVersionsRelations = relations(
@@ -729,7 +733,7 @@ export const formConfigVersionsRelations = relations(
       fields: [formConfigVersions.feedbackPageId],
       references: [feedbackPages.id],
     }),
-  })
+  }),
 );
 
 export const workspacesRelations = relations(workspaces, ({ many }) => ({
@@ -754,7 +758,7 @@ export const feedbackSubmissionsRelations = relations(
       fields: [feedbackSubmissions.workspaceId],
       references: [workspaces.id],
     }),
-  })
+  }),
 );
 
 export const feedbackPageViewsRelations = relations(
@@ -768,7 +772,7 @@ export const feedbackPageViewsRelations = relations(
       fields: [feedbackPageViews.workspaceId],
       references: [workspaces.id],
     }),
-  })
+  }),
 );
 
 // Type exports
@@ -808,10 +812,10 @@ export type NewCreditTransaction = typeof creditTransactions.$inferInsert;
 export type WorkspaceRole = "owner" | "admin" | "member" | "viewer";
 
 // ---------------------------------------------------------------------------
-// Beam: AI traffic analytics
+// Ocholens: AI traffic analytics
 // ---------------------------------------------------------------------------
 
-// Beam users are mirrored from Clerk by clerk_user_id. We keep our own row so
+// Ocholens users are mirrored from Clerk by clerk_user_id. We keep our own row so
 // foreign keys, membership joins, and offline jobs don't have to call Clerk.
 export const beamUser = pgTable("beam_user", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -843,10 +847,10 @@ export const beamMembership = pgTable(
   (table) => ({
     userOrgIdx: index("beam_membership_user_org_idx").on(
       table.userId,
-      table.orgId
+      table.orgId,
     ),
     orgIdx: index("beam_membership_org_idx").on(table.orgId),
-  })
+  }),
 );
 
 export const beamInvite = pgTable(
@@ -869,7 +873,7 @@ export const beamInvite = pgTable(
   (table) => ({
     orgIdx: index("beam_invite_org_idx").on(table.orgId),
     emailIdx: index("beam_invite_email_idx").on(table.email),
-  })
+  }),
 );
 
 export const site = pgTable("site", {
@@ -914,9 +918,9 @@ export const dashboard = pgTable(
   (table) => ({
     siteIdPositionIdx: index("dashboard_site_id_position_idx").on(
       table.siteId,
-      table.position
+      table.position,
     ),
-  })
+  }),
 );
 
 export const event = pgTable(
@@ -954,7 +958,7 @@ export const event = pgTable(
     siteIdTsIdx: index("event_site_id_ts_idx").on(table.siteId, table.ts),
     referrerHostIdx: index("event_site_referrer_host_idx").on(
       table.siteId,
-      table.referrerHost
+      table.referrerHost,
     ),
     // Composite (siteId, kind, ts) — serves the dashboard's per-kind,
     // 30-day-window aggregations (crawler/AI breakdowns) in a single index
@@ -964,23 +968,23 @@ export const event = pgTable(
     siteIdKindTsIdx: index("event_site_kind_ts_idx").on(
       table.siteId,
       table.kind,
-      table.ts
+      table.ts,
     ),
     siteIdCategoryIdx: index("event_site_category_idx").on(
       table.siteId,
-      table.botCategory
+      table.botCategory,
     ),
-  })
+  }),
 );
 
-export type BeamUser = typeof beamUser.$inferSelect;
-export type NewBeamUser = typeof beamUser.$inferInsert;
-export type BeamOrg = typeof beamOrg.$inferSelect;
-export type NewBeamOrg = typeof beamOrg.$inferInsert;
-export type BeamMembership = typeof beamMembership.$inferSelect;
-export type NewBeamMembership = typeof beamMembership.$inferInsert;
-export type BeamInvite = typeof beamInvite.$inferSelect;
-export type NewBeamInvite = typeof beamInvite.$inferInsert;
+export type OcholensUser = typeof beamUser.$inferSelect;
+export type NewOcholensUser = typeof beamUser.$inferInsert;
+export type OcholensOrg = typeof beamOrg.$inferSelect;
+export type NewOcholensOrg = typeof beamOrg.$inferInsert;
+export type OcholensMembership = typeof beamMembership.$inferSelect;
+export type NewOcholensMembership = typeof beamMembership.$inferInsert;
+export type OcholensInvite = typeof beamInvite.$inferSelect;
+export type NewOcholensInvite = typeof beamInvite.$inferInsert;
 export type Site = typeof site.$inferSelect;
 export type NewSite = typeof site.$inferInsert;
 export type Event = typeof event.$inferSelect;

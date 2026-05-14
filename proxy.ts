@@ -3,8 +3,8 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 const isPublicRoute = createRouteMatcher([
   "/",
   "/api/webhooks(.*)",
-  "/api/i", // Beam: public ingest endpoint (pixel)
-  "/invite/(.*)", // Beam: invite accept page (handles its own redirect-to-sign-in)
+  "/api/i", // Ocholens: public ingest endpoint (pixel)
+  "/invite/(.*)", // Ocholens: invite accept page (handles its own redirect-to-sign-in)
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/api/translate", // Temporarily public for testing, remove if you want auth required

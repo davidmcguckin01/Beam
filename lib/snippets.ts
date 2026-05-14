@@ -42,7 +42,7 @@ function pixelHtml(appUrl: string, apiKey: string) {
 
 function nextjsBody(appUrl: string, apiKey: string) {
   return `// middleware.ts (or proxy.ts on Next 16+)
-// Beam — server-side AI crawler detection.
+// Ocholens — server-side AI crawler detection.
 import type { NextRequest, NextFetchEvent } from "next/server";
 
 const AI_BOTS = /${BOTS_REGEX_SOURCE}/i;
@@ -162,7 +162,9 @@ function aiPromptBody(opts: {
 }) {
   const { appUrl, apiKey, stack, domain } = opts;
   const stackLabel =
-    stack && stack !== "unknown" ? prettyStack(stack) : "(unknown — check the package.json / framework files in this repo)";
+    stack && stack !== "unknown"
+      ? prettyStack(stack)
+      : "(unknown — check the package.json / framework files in this repo)";
 
   const pixel = pixelHtml(appUrl, apiKey);
 
@@ -203,10 +205,10 @@ When matched, POST to ${appUrl}/api/i with the JSON body below. Important: regis
 \`\`\``;
   }
 
-  return `You're installing Beam (an AI traffic analytics tool) on my ${stackLabel} site at ${domain}.
+  return `You're installing Ocholens (an AI traffic analytics tool) on my ${stackLabel} site at ${domain}.
 
-My Beam apiKey is: ${apiKey}
-The Beam ingest endpoint is: ${appUrl}/api/i
+My Ocholens apiKey is: ${apiKey}
+The Ocholens ingest endpoint is: ${appUrl}/api/i
 
 Two things to install:
 
@@ -218,7 +220,7 @@ ${pixel}
 
 2) Verify the snippet is rendered into <head> on every public page. For frameworks with a single layout file (Next.js app/layout.tsx, _document.tsx, theme.liquid, etc.), one place is enough.${middlewareBlock}
 
-After installing, tell me exactly which files you changed and what to verify in the browser DevTools to confirm Beam is firing.`;
+After installing, tell me exactly which files you changed and what to verify in the browser DevTools to confirm Ocholens is firing.`;
 }
 
 function shopifyBody(appUrl: string, apiKey: string) {
@@ -240,7 +242,12 @@ function htmlOnlyBody(appUrl: string, apiKey: string) {
   return pixelHtml(appUrl, apiKey);
 }
 
-function allTabs(appUrl: string, apiKey: string, stack: Stack | null | undefined, domain: string): SnippetTab[] {
+function allTabs(
+  appUrl: string,
+  apiKey: string,
+  stack: Stack | null | undefined,
+  domain: string,
+): SnippetTab[] {
   return [
     {
       key: "pixel",
@@ -249,8 +256,7 @@ function allTabs(appUrl: string, apiKey: string, stack: Stack | null | undefined
       blurb:
         "Catches human referrals from chatgpt.com / claude.ai / etc. Works on any site.",
       body: pixelHtml(appUrl, apiKey),
-      pasteInstruction:
-        "Paste in your <head> on every page you want tracked.",
+      pasteInstruction: "Paste in your <head> on every page you want tracked.",
     },
     {
       key: "nextjs",
@@ -322,8 +328,7 @@ function allTabs(appUrl: string, apiKey: string, stack: Stack | null | undefined
       lang: "html",
       blurb: "Pixel only — Wix is HTML-served (Premium plan required).",
       body: htmlOnlyBody(appUrl, apiKey),
-      pasteInstruction:
-        "Settings → Custom Code → + Add Custom Code → Head.",
+      pasteInstruction: "Settings → Custom Code → + Add Custom Code → Head.",
     },
     {
       key: "squarespace",
@@ -331,20 +336,18 @@ function allTabs(appUrl: string, apiKey: string, stack: Stack | null | undefined
       lang: "html",
       blurb: "Pixel only — Squarespace is HTML-served.",
       body: htmlOnlyBody(appUrl, apiKey),
-      pasteInstruction:
-        "Settings → Advanced → Code Injection → Header.",
+      pasteInstruction: "Settings → Advanced → Code Injection → Header.",
     },
     {
       key: "ai-prompt",
       label: "AI prompt",
       lang: "txt",
       blurb:
-        "Paste this into Cursor / Claude Code / Copilot Chat in your project — it'll install Beam for you.",
+        "Paste this into Cursor / Claude Code / Copilot Chat in your project — it'll install Ocholens for you.",
       body: aiPromptBody({ appUrl, apiKey, stack, domain }),
       pasteInstruction:
         "Open your AI assistant inside the project and paste the prompt.",
-      doneInstruction:
-        "Let it edit the files, then refresh the dashboard.",
+      doneInstruction: "Let it edit the files, then refresh the dashboard.",
     },
   ];
 }

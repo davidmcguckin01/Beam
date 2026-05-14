@@ -4,19 +4,19 @@ import { cookies } from "next/headers";
 import { db } from "@/db";
 import { site, event, beamMembership, beamInvite } from "@/db/schema";
 import { and, eq, desc, sql, isNull } from "drizzle-orm";
-import { ensureBeamSession } from "@/lib/beam-auth";
+import { ensureOcholensSession } from "@/lib/beam-auth";
 import { createSiteAction } from "./actions";
 import { inviteAction } from "./settings/actions";
 import { skipInviteStepAction } from "./setup-actions";
 import { INVITE_SKIPPED_COOKIE } from "@/lib/setup-cookies";
 import { companyDomainFromEmail } from "@/lib/email-domain";
-import { BeamHeader } from "@/components/beam-header";
+import { OcholensHeader } from "@/components/beam-header";
 import { OnboardingDomainInput } from "./onboarding-domain-input";
 
 export const dynamic = "force-dynamic";
 
 export default async function AppEntryPage() {
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) redirect("/sign-in");
 
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -213,13 +213,13 @@ function Shell({
   sites,
   children,
 }: {
-  session: Awaited<ReturnType<typeof ensureBeamSession>> & object;
+  session: Awaited<ReturnType<typeof ensureOcholensSession>> & object;
   sites: { id: string; domain: string }[];
   children: React.ReactNode;
 }) {
   return (
     <main className="min-h-screen bg-[#fafafa] text-black antialiased">
-      <BeamHeader
+      <OcholensHeader
         orgs={session.orgs}
         activeOrg={session.activeOrg}
         sites={sites}
@@ -372,13 +372,12 @@ function ProgressBar({ current }: { current: 1 | 2 | 3 }) {
       {[1, 2, 3].map((i) => (
         <span
           key={i}
-          className={`h-1 flex-1 rounded-full ${
-            i < current
+          className={`h-1 flex-1 rounded-full ${i < current
               ? "bg-black"
               : i === current
                 ? "bg-black"
                 : "bg-black/10"
-          }`}
+            }`}
         />
       ))}
     </div>

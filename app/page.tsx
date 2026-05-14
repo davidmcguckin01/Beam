@@ -10,7 +10,7 @@ export default function LandingPage() {
           <Link href="/" className="flex items-center gap-2">
             <Logo />
             <span className="text-[15px] font-semibold tracking-tight">
-              Beam
+              Ocholens
             </span>
           </Link>
           <nav className="flex items-center gap-1 text-sm">
@@ -72,19 +72,19 @@ export default function LandingPage() {
               </span>
             </div>
             <pre className="overflow-x-auto px-4 py-3 text-left font-mono text-[12px] leading-relaxed text-black/85">
-{`<script async src="https://beam.dev/p.js" data-site="YOUR_KEY"></script>
+              {`<script async src="https://beam.dev/p.js" data-site="YOUR_KEY"></script>
 <noscript><img src="https://beam.dev/api/i?s=YOUR_KEY&c=1" width="1" height="1" alt=""></noscript>`}
             </pre>
           </div>
         </div>
       </section>
 
-      {/* What Beam shows you */}
+      {/* What Ocholens shows you */}
       <section className="border-b border-black/8">
         <div className="mx-auto max-w-5xl px-6 py-20">
           <div className="mb-12 max-w-2xl">
             <p className="font-mono text-[11px] uppercase tracking-wide text-black/40">
-              What Beam shows you
+              What Ocholens shows you
             </p>
             <h2 className="mt-2 text-3xl font-semibold tracking-[-0.03em]">
               Two kinds of AI traffic. One dashboard.
@@ -94,12 +94,12 @@ export default function LandingPage() {
             <Pillar
               tag="Humans"
               title="People clicking through from chat tools"
-              body="When a user reads about you on ChatGPT or Claude and clicks the link, your analytics see it as direct. Beam sees ChatGPT, Claude, Perplexity, Gemini, Copilot, You.com, Phind, Meta AI, DuckDuckGo — and tells you which page they landed on."
+              body="When a user reads about you on ChatGPT or Claude and clicks the link, your analytics see it as direct. Ocholens sees ChatGPT, Claude, Perplexity, Gemini, Copilot, You.com, Phind, Meta AI, DuckDuckGo — and tells you which page they landed on."
             />
             <Pillar
               tag="Bots"
               title="Crawlers training on your content"
-              body="GPTBot, ClaudeBot, PerplexityBot, OAI-SearchBot, Google-Extended, Anthropic-AI. They don&apos;t run JavaScript — most analytics never see them. Beam catches them server-side and verifies them against the vendor&apos;s published IP ranges."
+              body="GPTBot, ClaudeBot, PerplexityBot, OAI-SearchBot, Google-Extended, Anthropic-AI. They don&apos;t run JavaScript — most analytics never see them. Ocholens catches them server-side and verifies them against the vendor&apos;s published IP ranges."
             />
           </div>
         </div>
@@ -127,7 +127,7 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-8 text-sm text-black/50 sm:flex-row">
           <div className="flex items-center gap-2">
             <Logo />
-            <span>Beam</span>
+            <span>Ocholens</span>
           </div>
           <div className="flex items-center gap-6">
             <a href="mailto:hello@beam.dev" className="hover:text-black">

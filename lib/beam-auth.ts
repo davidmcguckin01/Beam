@@ -7,7 +7,7 @@ import { and, eq } from "drizzle-orm";
 
 const ACTIVE_ORG_COOKIE = "beam_active_org";
 
-export type BeamSession = {
+export type OcholensSession = {
   user: {
     id: string;
     clerkUserId: string;
@@ -23,7 +23,7 @@ export type BeamSession = {
 // Ensures the Clerk user has a row in beam_user and at least one org/membership.
 // On first call: creates the user row, a personal org, and an owner membership.
 // Active org is resolved from the beam_active_org cookie when valid, else first.
-export async function ensureBeamSession(): Promise<BeamSession | null> {
+export async function ensureOcholensSession(): Promise<OcholensSession | null> {
   const { userId } = await auth();
   if (!userId) return null;
 
@@ -87,8 +87,7 @@ export async function ensureBeamSession(): Promise<BeamSession | null> {
 
   const cookieStore = await cookies();
   const cookieOrgId = cookieStore.get(ACTIVE_ORG_COOKIE)?.value;
-  const activeOrg =
-    orgs.find((o) => o.id === cookieOrgId) ?? orgs[0];
+  const activeOrg = orgs.find((o) => o.id === cookieOrgId) ?? orgs[0];
 
   const firstName = cu?.firstName ?? null;
   const displayName =
@@ -111,13 +110,16 @@ export async function ensureBeamSession(): Promise<BeamSession | null> {
 
 export async function isMemberOfOrg(
   beamUserId: string,
-  orgId: string
+  orgId: string,
 ): Promise<boolean> {
   const rows = await db
     .select({ id: beamMembership.id })
     .from(beamMembership)
     .where(
-      and(eq(beamMembership.userId, beamUserId), eq(beamMembership.orgId, orgId))
+      and(
+        eq(beamMembership.userId, beamUserId),
+        eq(beamMembership.orgId, orgId),
+      ),
     )
     .limit(1);
   return rows.length > 0;
@@ -125,13 +127,16 @@ export async function isMemberOfOrg(
 
 export async function getMembership(
   beamUserId: string,
-  orgId: string
+  orgId: string,
 ): Promise<{ role: string } | null> {
   const rows = await db
     .select({ role: beamMembership.role })
     .from(beamMembership)
     .where(
-      and(eq(beamMembership.userId, beamUserId), eq(beamMembership.orgId, orgId))
+      and(
+        eq(beamMembership.userId, beamUserId),
+        eq(beamMembership.orgId, orgId),
+      ),
     )
     .limit(1);
   return rows[0] ?? null;

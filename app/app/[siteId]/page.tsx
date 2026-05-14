@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { db } from "@/db";
 import { site, event, dashboard } from "@/db/schema";
 import { and, eq, gte, desc, asc, sql, isNotNull } from "drizzle-orm";
-import { ensureBeamSession, isMemberOfOrg } from "@/lib/beam-auth";
+import { ensureOcholensSession, isMemberOfOrg } from "@/lib/beam-auth";
 import { buildSnippets } from "@/lib/snippets";
 import { getAppUrl } from "@/lib/app-url";
 import { describeStack, type Stack } from "@/lib/stack-detect";
@@ -24,7 +24,7 @@ export default async function SiteDashboardPage({
   const { siteId } = await params;
   const sp = await searchParams;
   const recentPage = Math.max(1, Number(sp.page) || 1);
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) redirect("/sign-in");
 
   const rows = await db
@@ -299,9 +299,9 @@ export default async function SiteDashboardPage({
   const detected =
     stack && stack !== "unknown"
       ? {
-          label: describeStack(stack).label,
-          serverSideAvailable: describeStack(stack).serverSideAvailable,
-        }
+        label: describeStack(stack).label,
+        serverSideAvailable: describeStack(stack).serverSideAvailable,
+      }
       : null;
 
   return (

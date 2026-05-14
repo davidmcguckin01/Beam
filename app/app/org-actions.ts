@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { beamOrg, beamMembership } from "@/db/schema";
 import {
-  ensureBeamSession,
+  ensureOcholensSession,
   isMemberOfOrg,
   ACTIVE_ORG_COOKIE_NAME,
 } from "@/lib/beam-auth";
@@ -13,7 +13,7 @@ import {
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 
 export async function setActiveOrgAction(formData: FormData) {
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) redirect("/sign-in");
 
   const orgId = String(formData.get("orgId") || "");
@@ -35,7 +35,7 @@ export async function setActiveOrgAction(formData: FormData) {
 }
 
 export async function createOrgAction(formData: FormData) {
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) redirect("/sign-in");
 
   const name = String(formData.get("name") || "").trim();

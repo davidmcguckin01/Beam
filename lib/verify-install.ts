@@ -1,7 +1,7 @@
 // Real install verification: fetches a customer's homepage and checks whether
-// the Beam snippet is actually present in the HTML, keyed to this site's
+// the Ocholens snippet is actually present in the HTML, keyed to this site's
 // apiKey. This is distinct from a synthetic "test ping" — a test ping only
-// proves Beam's own ingest pipeline works; it says nothing about whether the
+// proves Ocholens's own ingest pipeline works; it says nothing about whether the
 // script is live on the customer's site. This does.
 
 export type VerifyResult =
@@ -10,7 +10,7 @@ export type VerifyResult =
   | { status: "unreachable" };
 
 const FETCH_TIMEOUT_MS = 6000;
-const UA = "BeamBot/1.0 (+https://beam.dev/bot)";
+const UA = "OcholensBot/1.0 (+https://beam.dev/bot)";
 
 // Fetch the homepage. HTTPS first, HTTP fallback — some sites are HTTP-only.
 async function fetchHome(domain: string): Promise<string | null> {
@@ -52,7 +52,7 @@ export function htmlHasSnippet(html: string, apiKey: string): boolean {
 
 export async function verifyInstall(
   domain: string,
-  apiKey: string
+  apiKey: string,
 ): Promise<VerifyResult> {
   const html = await fetchHome(domain);
   if (html === null) return { status: "unreachable" };

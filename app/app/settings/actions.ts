@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { beamInvite, beamMembership } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
-import { ensureBeamSession, getMembership } from "@/lib/beam-auth";
+import { ensureOcholensSession, getMembership } from "@/lib/beam-auth";
 
 function generateInviteToken(): string {
   const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -20,7 +20,7 @@ function generateInviteToken(): string {
 const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
 
 export async function inviteAction(formData: FormData) {
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) redirect("/sign-in");
 
   // Optional return path. The first-run "Invite your team" card on a site
@@ -63,7 +63,7 @@ export async function inviteAction(formData: FormData) {
 }
 
 export async function revokeInviteAction(formData: FormData) {
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) redirect("/sign-in");
 
   const inviteId = String(formData.get("inviteId") || "");
@@ -79,15 +79,15 @@ export async function revokeInviteAction(formData: FormData) {
     .where(
       and(
         eq(beamInvite.id, inviteId),
-        eq(beamInvite.orgId, session.activeOrgId)
-      )
+        eq(beamInvite.orgId, session.activeOrgId),
+      ),
     );
 
   redirect("/app/settings?ok=revoked");
 }
 
 export async function removeMemberAction(formData: FormData) {
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) redirect("/sign-in");
 
   const memberId = String(formData.get("membershipId") || "");
@@ -104,8 +104,8 @@ export async function removeMemberAction(formData: FormData) {
     .where(
       and(
         eq(beamMembership.id, memberId),
-        eq(beamMembership.orgId, session.activeOrgId)
-      )
+        eq(beamMembership.orgId, session.activeOrgId),
+      ),
     );
 
   redirect("/app/settings?ok=removed");

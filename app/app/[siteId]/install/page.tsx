@@ -3,11 +3,11 @@ import { redirect, notFound } from "next/navigation";
 import { db } from "@/db";
 import { site } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
-import { ensureBeamSession, isMemberOfOrg } from "@/lib/beam-auth";
+import { ensureOcholensSession, isMemberOfOrg } from "@/lib/beam-auth";
 import { buildSnippets } from "@/lib/snippets";
 import { getAppUrl } from "@/lib/app-url";
 import { describeStack, type Stack } from "@/lib/stack-detect";
-import { BeamHeader } from "@/components/beam-header";
+import { OcholensHeader } from "@/components/beam-header";
 import { InstallCard } from "../install-card";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +18,7 @@ export default async function InstallPage({
   params: Promise<{ siteId: string }>;
 }) {
   const { siteId } = await params;
-  const session = await ensureBeamSession();
+  const session = await ensureOcholensSession();
   if (!session) redirect("/sign-in");
 
   const rows = await db
@@ -49,14 +49,14 @@ export default async function InstallPage({
   const detected =
     stack && stack !== "unknown"
       ? {
-          label: describeStack(stack).label,
-          serverSideAvailable: describeStack(stack).serverSideAvailable,
-        }
+        label: describeStack(stack).label,
+        serverSideAvailable: describeStack(stack).serverSideAvailable,
+      }
       : null;
 
   return (
     <main className="min-h-screen bg-[#fafafa] text-black antialiased">
-      <BeamHeader
+      <OcholensHeader
         orgs={session.orgs}
         activeOrg={session.activeOrg}
         sites={orgSites}
