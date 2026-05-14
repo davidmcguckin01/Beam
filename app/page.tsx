@@ -38,13 +38,11 @@ export default function LandingPage() {
             The analytics gap
           </div>
           <h1 className="text-balance text-5xl font-semibold tracking-[-0.04em] text-black sm:text-6xl">
-            Most of your AI traffic shows up as &ldquo;direct&rdquo; in Google
+            Most of your AI traffic shows up as &ldquo;direct&rdquo; in
             Analytics.
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-balance text-lg text-black/60">
-            ChatGPT, Claude, and Perplexity are sending real readers to your
-            site every day — and the crawlers behind them are training on your
-            content. Standard analytics can&apos;t tell you any of it.
+            ChatGPT, Claude, and Perplexity send readers to your site daily. Analytics doesn't see them.
           </p>
           <div className="mt-10 flex items-center justify-center gap-3">
             <Link
