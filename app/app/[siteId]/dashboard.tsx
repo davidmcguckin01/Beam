@@ -20,7 +20,7 @@ import {
   type WidgetKey,
 } from "@/lib/dashboard-widgets";
 import { saveDashboardLayoutAction } from "@/app/app/actions";
-import { inviteAction } from "@/app/app/settings/actions";
+import { TEST_PING_SOURCE } from "@/lib/test-ping";
 import {
   LineChart,
   Line,
@@ -262,9 +262,15 @@ export function Dashboard({
     return m;
   }, [crawlers]);
 
-  // Any event (human or crawler) in the 30-day window — recentPagination.total
-  // is that exact count, already computed server-side.
-  const hasData = recentPagination.total > 0;
+  // Whether this site has ever recorded a real event. totalEventsAllTime is
+  // computed server-side excluding synthetic "test ping" events — so sending a
+  // test ping is a pure sanity check: it never flips hasData and never tears
+  // down the first-run install surface into an empty dashboard.
+  const hasData = totalEventsAllTime > 0;
+
+  // A test ping has landed in the recent feed. Keeps the user on the install
+  // surface, but confirms inline that the ingest pipeline works end to end.
+  const testPinged = recentAll.some((e) => e.source === TEST_PING_SOURCE);
 
   const router = useRouter();
   const [refreshing, startRefresh] = useTransition();
@@ -640,8 +646,7 @@ export function Dashboard({
               siteId={site.id}
               onPromptCopied={() => setPromptArmed(true)}
             />
-            <WatchingForEvents armed={promptArmed} />
-            <InviteTeammates siteId={site.id} />
+            <WatchingForEvents armed={promptArmed} testPinged={testPinged} />
           </>
         ) : (
           <>
@@ -1180,12 +1185,23 @@ const WATCHED_BOTS = [
   "Bytespider",
 ];
 
-// First-run surface shown until the very first event lands. It polls the
-// server on a timer so the dashboard lights up on its own — the moment an
+// First-run surface shown until the very first real event lands. It polls the
+// server on a timer so the dashboard lights up on its own — the moment a real
 // event arrives, hasData flips and this whole component unmounts. Once the
 // user has copied the install prompt it escalates into a loud, animated
 // "watching for <bot>…" state — that's the payoff moment, so sell it.
-function WatchingForEvents({ armed }: { armed: boolean }) {
+//
+// testPinged: a synthetic test ping has landed. Test pings are excluded from
+// hasData server-side, so they never unmount this surface — instead we show an
+// inline "pipeline works" confirmation, which is exactly what a pre-install
+// sanity check should feel like.
+function WatchingForEvents({
+  armed,
+  testPinged,
+}: {
+  armed: boolean;
+  testPinged: boolean;
+}) {
   const router = useRouter();
 
   useEffect(() => {
@@ -1203,12 +1219,37 @@ function WatchingForEvents({ armed }: { armed: boolean }) {
     return () => clearInterval(id);
   }, [armed]);
 
+  const title = testPinged
+    ? "Test ping received"
+    : armed
+      ? "Watching for crawlers"
+      : "Waiting for first event";
+
   return (
-    <Section
-      title={armed ? "Watching for crawlers" : "Waiting for first event"}
-      right={armed ? "live" : undefined}
-    >
-      {armed ? (
+    <Section title={title} right={armed || testPinged ? "live" : undefined}>
+      {testPinged ? (
+        <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+              <path
+                d="M3 7.5 L6 10.5 L11 4"
+                stroke="#059669"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+          <div className="text-[14px] text-black">
+            Your ingest pipeline works
+          </div>
+          <p className="max-w-sm text-[12.5px] text-black/50">
+            That test ping reached Beam and is in your recent events. Now run
+            the install prompt so real crawler hits land here too — this page
+            updates itself the second they do.
+          </p>
+        </div>
+      ) : armed ? (
         <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
           <span className="relative flex h-2.5 w-2.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
@@ -1230,47 +1271,6 @@ function WatchingForEvents({ armed }: { armed: boolean }) {
           Events arrive within seconds — this page updates itself.
         </div>
       )}
-    </Section>
-  );
-}
-
-// First-run nudge to bring teammates into the workspace. Reuses the Settings
-// inviteAction; redirectTo keeps a successful invite on this dashboard
-// instead of bouncing out to Settings mid-onboarding.
-function InviteTeammates({ siteId }: { siteId: string }) {
-  return (
-    <Section title="Invite your team" right="optional">
-      <form
-        action={inviteAction}
-        className="flex flex-wrap items-center gap-2 px-6 py-5"
-      >
-        <input type="hidden" name="redirectTo" value={`/app/${siteId}`} />
-        <input type="hidden" name="role" value="member" />
-        <input
-          type="email"
-          name="email"
-          required
-          placeholder="teammate@company.com"
-          className="block w-full max-w-xs rounded-md border border-black/10 bg-white px-3 py-2 text-[13px] text-black placeholder:text-black/30 focus:border-black/40 focus:outline-none"
-        />
-        <button
-          type="submit"
-          className="inline-flex h-9 items-center rounded-md bg-black px-4 text-[13px] font-medium text-white hover:bg-black/85"
-        >
-          Send invite
-        </button>
-        <p className="basis-full text-[11px] text-black/45">
-          They get their own access to this workspace&apos;s dashboards.
-          Manage and revoke invites any time in{" "}
-          <Link
-            href="/app/settings"
-            className="text-black/60 underline underline-offset-2 hover:text-black"
-          >
-            Settings
-          </Link>
-          .
-        </p>
-      </form>
     </Section>
   );
 }

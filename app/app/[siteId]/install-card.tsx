@@ -69,22 +69,12 @@ export function InstallCard({
               </form>
             </>
           ) : (
-            <form action={redetectStackAction}>
-              <input type="hidden" name="siteId" value={siteId} />
-              <button
-                type="submit"
-                className="font-mono text-[11px] text-black/55 hover:text-black"
-              >
-                detect platform →
-              </button>
-            </form>
+            <DetectPlatformButton siteId={siteId} />
           )}
         </div>
-        <span className="text-[11px] text-black/45">
-          {detected?.serverSideAvailable === false
-            ? "HTML-only platform"
-            : "pixel = humans · middleware = crawlers"}
-        </span>
+        {detected?.serverSideAvailable === false && (
+          <span className="text-[11px] text-black/45">HTML-only platform</span>
+        )}
       </div>
 
       {/* Primary surface — copy the prompt, hand it to your AI editor. */}
@@ -183,6 +173,64 @@ function TestPingButton({ siteId }: { siteId: string }) {
         {pending ? "sending…" : "Send a test ping →"}
       </button>
     </form>
+  );
+}
+
+// Re-run stack detection. Detection hits the customer's domain over the
+// network, so it can take a couple of seconds — show a spinner while the
+// transition (action + redirect) is in flight.
+function DetectPlatformButton({ siteId }: { siteId: string }) {
+  const [pending, startTransition] = useTransition();
+  return (
+    <form
+      action={(fd) => {
+        startTransition(() => redetectStackAction(fd));
+      }}
+    >
+      <input type="hidden" name="siteId" value={siteId} />
+      <button
+        type="submit"
+        disabled={pending}
+        className="inline-flex items-center gap-1.5 font-mono text-[11px] text-black/55 hover:text-black disabled:opacity-50"
+      >
+        {pending ? (
+          <>
+            <Spinner />
+            detecting…
+          </>
+        ) : (
+          "detect platform →"
+        )}
+      </button>
+    </form>
+  );
+}
+
+function Spinner() {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 12 12"
+      fill="none"
+      className="animate-spin"
+      aria-hidden
+    >
+      <circle
+        cx="6"
+        cy="6"
+        r="4.5"
+        stroke="currentColor"
+        strokeOpacity="0.25"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M6 1.5 A4.5 4.5 0 0 1 10.5 6"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 
