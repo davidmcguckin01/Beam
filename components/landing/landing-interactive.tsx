@@ -6,6 +6,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import Link from "next/link";
+import { useUser, UserButton } from "@clerk/nextjs";
 
 // Shared brand accent — kept in sync with app/page.tsx.
 const ACCENT = "#FF5C35";
@@ -187,6 +189,48 @@ export function FaqAccordion({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ── NavAuthActions ──────────────────────────────────────────────────────────
+// The right-hand cluster of the landing nav. Signed-out visitors get the
+// sign-in / sign-up CTAs; signed-in visitors get a link straight to the app
+// with their Clerk avatar beside it. While auth state is still resolving we
+// show the signed-out CTAs — most landing-page traffic is logged out, so this
+// keeps the nav stable and avoids an empty gap.
+
+export function NavAuthActions() {
+  const { isLoaded, isSignedIn } = useUser();
+
+  if (isLoaded && isSignedIn) {
+    return (
+      <div className="flex items-center gap-2">
+        <Link
+          href="/app"
+          className="inline-flex h-9 items-center rounded-lg bg-black px-4 text-[13.5px] font-medium text-white transition-colors hover:bg-black/85"
+        >
+          Go to app
+        </Link>
+        <UserButton appearance={{ elements: { avatarBox: "h-8 w-8" } }} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <Link
+        href="/sign-in"
+        className="rounded-md px-3 py-1.5 text-[13.5px] font-medium text-black/55 transition-colors hover:text-black"
+      >
+        Sign in
+      </Link>
+      <Link
+        href="/sign-up"
+        className="inline-flex h-9 items-center rounded-lg bg-black px-4 text-[13.5px] font-medium text-white transition-colors hover:bg-black/85"
+      >
+        Start tracking free
+      </Link>
     </div>
   );
 }

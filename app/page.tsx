@@ -4,6 +4,7 @@ import {
   RotatingWord,
   Reveal,
   FaqAccordion,
+  NavAuthActions,
 } from "@/components/landing/landing-interactive";
 
 export const dynamic = "force-static";
@@ -81,20 +82,7 @@ function Nav() {
             </Link>
           </nav>
 
-          <div className="flex items-center gap-1.5">
-            <Link
-              href="/sign-in"
-              className="rounded-md px-3 py-1.5 text-[13.5px] font-medium text-black/55 transition-colors hover:text-black"
-            >
-              Sign in
-            </Link>
-            <Link
-              href="/sign-up"
-              className="inline-flex h-9 items-center rounded-lg bg-black px-4 text-[13.5px] font-medium text-white transition-colors hover:bg-black/85"
-            >
-              Start tracking free
-            </Link>
-          </div>
+          <NavAuthActions />
         </div>
       </header>
     </div>
@@ -160,8 +148,6 @@ function Hero() {
     </section>
   );
 }
-
-// ── Screenshot section ──────────────────────────────────────────────────────
 
 function ScreenshotSection() {
   return (
@@ -253,8 +239,9 @@ function BrowserMock() {
           <MiniAreaChart gradientId="ocho-area-hero" />
         </div>
 
-        {/* Source + crawler lists */}
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {/* Source + crawler lists — hidden on mobile, where the screenshot
+            already runs long and the lists add the most vertical height. */}
+        <div className="mt-3 hidden gap-3 sm:grid sm:grid-cols-2">
           <ListCard
             title="AI sources"
             rows={[
